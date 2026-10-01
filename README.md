@@ -40,18 +40,18 @@ A status line under each tab reports the result of the last action and is mirror
 
 ## Usage
 
-1. Build or download `nrmm.dll` (see below)
+1. [Build](#building) or [download](https://github.com/AlexR32/nrmm/releases/latest) `nrmm.dll`
 2. Launch *NIGHT-RUNNERS* and get into the game
 3. Inject `nrmm.dll` into the game process using your own DLL injector of choice.
 4. Press `INS` to toggle the menu
 
 Controls and behaviour:
 
-| Input / action      | Effect                                   |
-| ------------------- | ---------------------------------------- |
-| `INS`               | Toggle the menu and release the cursor   |
-| `DELETE`            | Unload the DLL                           |
-| Settings > UNHOOK   | Unload the DLL from the menu             |
+| Input / action      | Effect                         |
+| ------------------- | ------------------------------ |
+| `INS`               | Toggle the menu                |
+| `DELETE`            | Unload the DLL                 |
+| Settings > UNHOOK   | Unload the DLL from the menu   |
 
 The mod writes a `nrmm.log` next to the DLL and, when enabled, opens a debug console titled `[NRMM] Debug Console`
 
