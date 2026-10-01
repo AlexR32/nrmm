@@ -1,0 +1,49 @@
+# Build output
+bin/
+int/
+dev/
+obj/
+log/
+logs/
+
+# Visual Studio
+.vs/
+ipch/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+*.opendb
+*.aps
+*.ncb
+*.cache
+*.cachefile
+*.userosscache
+*.sln.docstates
+
+# Build artifacts
+*.obj
+*.pch
+*.pdb
+*.ipdb
+*.ilk
+*.exp
+*.lib
+*.idb
+*.tlog
+*.log
+*.binlog
+*.tmp
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Misc
+.vshistory/
+*.bak
+*~
+~$*
