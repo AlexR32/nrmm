@@ -40,6 +40,8 @@ private:
     static UINT WINAPI hkGetRawInputData(HRAWINPUT raw, UINT command, LPVOID data, PUINT size, UINT headerSize);
     static UINT WINAPI hkGetRawInputBuffer(PRAWINPUT data, PUINT size, UINT headerSize);
 
+    static void NeutralizeRawInput(void* data);
+
     static inline SetCursorPosFn oSetCursorPos = nullptr;
     static inline ClipCursorFn oClipCursor = nullptr;
     static inline GetAsyncKeyStateFn oGetAsyncKeyState = nullptr;

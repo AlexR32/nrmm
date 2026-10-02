@@ -170,7 +170,7 @@ void Menu::RenderSettingsTab() {
     }
 
     bool showConsole = Logger::GetVisibility();
-    if (ImGui::Checkbox("Show Debug Console", &showConsole)) {
+    if (ImGui::Checkbox("Debug Console", &showConsole)) {
         Logger::SetVisibility(showConsole);
     }
 
@@ -244,6 +244,18 @@ LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     // The debug console renders independently but only becomes interactive while
     // the main menu is open, so a hidden cursor cannot move it during play.
     if (!visible.load(std::memory_order_relaxed)) return FALSE;
+
+    if (uMsg == WM_INPUT) {
+        RAWINPUT raw{};
+        UINT size = sizeof(raw);
+        const UINT result = GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, &raw, &size, sizeof(RAWINPUTHEADER));
+        const bool isHid = result != static_cast<UINT>(-1) && result >= sizeof(RAWINPUTHEADER) && raw.header.dwType == RIM_TYPEHID;
+
+        if (!isHid) {
+            DefWindowProc(hWnd, uMsg, wParam, lParam);
+            return TRUE;
+        }
+    }
 
     if (ShouldForwardToImGui(uMsg)) {
         std::lock_guard<std::mutex> lock(inputMutex);

@@ -124,18 +124,45 @@ BOOL WINAPI InputBlock::hkGetKeyboardState(PBYTE keys) {
     return oGetKeyboardState(keys);
 }
 
+void InputBlock::NeutralizeRawInput(void* data) {
+    RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(data);
+    if (!raw) return;
+
+    if (raw->header.dwType == RIM_TYPEMOUSE) {
+        raw->data.mouse.lLastX = 0;
+        raw->data.mouse.lLastY = 0;
+        raw->data.mouse.usButtonFlags = 0;
+        raw->data.mouse.usButtonData = 0;
+        raw->data.mouse.ulButtons = 0;
+    } else if (raw->header.dwType == RIM_TYPEKEYBOARD && keyboardBlock.load(std::memory_order_relaxed)) {
+        raw->data.keyboard.Flags |= RI_KEY_BREAK;
+        raw->data.keyboard.Message = WM_KEYUP;
+    }
+}
+
 UINT WINAPI InputBlock::hkGetRawInputData(HRAWINPUT raw, UINT command, LPVOID data, PUINT size, UINT headerSize) {
-    if (suppressed.load(std::memory_order_relaxed)) return static_cast<UINT>(-1);
     if (!oGetRawInputData) return static_cast<UINT>(-1);
-    return oGetRawInputData(raw, command, data, size, headerSize);
+
+    const UINT result = oGetRawInputData(raw, command, data, size, headerSize);
+    if (result != static_cast<UINT>(-1) && data && command == RID_INPUT
+        && result >= sizeof(RAWINPUTHEADER) && suppressed.load(std::memory_order_relaxed)) {
+        NeutralizeRawInput(data);
+    }
+    return result;
 }
 
 UINT WINAPI InputBlock::hkGetRawInputBuffer(PRAWINPUT data, PUINT size, UINT headerSize) {
-    if (suppressed.load(std::memory_order_relaxed)) {
-        if (size) *size = 0;
-        return 0;
-    }
-
     if (!oGetRawInputBuffer) return 0;
-    return oGetRawInputBuffer(data, size, headerSize);
+
+    const UINT count = oGetRawInputBuffer(data, size, headerSize);
+    if (data && count > 0 && count != static_cast<UINT>(-1) && suppressed.load(std::memory_order_relaxed)) {
+        BYTE* cursor = reinterpret_cast<BYTE*>(data);
+        for (UINT i = 0; i < count; ++i) {
+            RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(cursor);
+            NeutralizeRawInput(raw);
+            if (raw->header.dwSize < sizeof(RAWINPUTHEADER)) break;
+            cursor += raw->header.dwSize;
+        }
+    }
+    return count;
 }
