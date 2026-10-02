@@ -105,3 +105,7 @@ The release version lives in the top-level `.version` file. Change it to bump th
 - Only the 64-bit build is supported
 - The mod relies on IL2CPP exports and game field/method names, so it is tied to a specific game build. Memory addresses and names may change between updates
 - This project is intended for personal/offline use. Use it at your own risk
+
+## License
+
+Released under the [MIT License](LICENSE). Vendored third-party dependencies keep their own licenses: Dear ImGui is MIT and MinHook is BSD-2-Clause
