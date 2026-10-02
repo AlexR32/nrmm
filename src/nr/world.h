@@ -12,11 +12,10 @@
 #include <string>
 #include <vector>
 
-// Player tab: the player car wheel/induction/fuel type, ending the night, money
-// and reputation grants, the parts unlock and the traffic toggle. The widgets
-// read a small snapshot that RefreshSnapshot() rebuilds on the script thread
-// from the GodConstant.Update hook, so the render thread never touches managed
-// objects for display
+// World tab: traffic, meetspot attacks, fast travel and garage ownership. The
+// meettspot/travel/garage lists are rebuilt on the script thread, and the widget
+// state is read from atomics or copies taken under a mutex, so the render
+// thread never touches managed objects for display
 
 class World {
 public:

@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.h"
 #include "il2cpp/types.h"
+#include <atomic>
 
 // Script-thread hooks
 // Unity only advances coroutines from its player loop, so anything that starts
@@ -10,8 +11,10 @@
 
 class Hooks {
 public:
-    // Called from the render callback. GodConstant may not exist during the
-    // first frames, so it retries roughly once a second until it does
+    // Called from the mod's own worker loop, never from the render thread:
+    // installing here avoids doing il2cpp reflection and MinHook work inside
+    // the Present detour. GodConstant may not exist during the first frames, so
+    // it is retried until it does
     static void EnsureInstalled();
 
     static void Remove();
@@ -26,8 +29,16 @@ private:
 
     static void __fastcall HookedGodConstantUpdate(Il2CppObject* self, const MethodInfo* method);
 
+    // Keeps Remove() from tearing the detour down while it is still executing
+    // on the script thread
+    struct HookScope {
+        HookScope() { inFlight.fetch_add(1, std::memory_order_acq_rel); }
+        ~HookScope() { inFlight.fetch_sub(1, std::memory_order_acq_rel); }
+    };
+
     static GodConstantUpdateFn originalGodConstantUpdate;
     static void* godConstantUpdateTarget;
-    static bool installed;
-    static int installAttempts;
+    static std::atomic_bool installed;
+    static std::atomic_bool active;
+    static std::atomic_int inFlight;
 };

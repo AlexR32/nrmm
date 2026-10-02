@@ -12,11 +12,11 @@
 #include <string>
 #include <vector>
 
-// Current car tab: the player car wheel/induction/fuel type, ending the night, money
-// and reputation grants, the parts unlock and the traffic toggle. The widgets
-// read a small snapshot that RefreshSnapshot() rebuilds on the script thread
-// from the GodConstant.Update hook, so the render thread never touches managed
-// objects for display
+// Current car tab: the drivetrain, induction and fuel type, the freeze toggles
+// and the oil/car-stats actions for the car the player is currently driving.
+// The widgets read a small snapshot that RefreshSnapshot() rebuilds on the
+// script thread from the GodConstant.Update hook, so the render thread never
+// touches managed objects for display
 
 class CurrentCar {
 public:

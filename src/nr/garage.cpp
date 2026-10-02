@@ -11,6 +11,7 @@ Shared::Sequence Garage::spawn;
 Garage::SpawnContext Garage::ctx;
 
 std::vector<Garage::ChassisOption> Garage::chassisOptions;
+std::mutex Garage::chassisMutex;
 int Garage::selectedChassis = 0;
 std::atomic_bool Garage::chassisLoaded{ false };
 std::atomic_bool Garage::chassisLoadAttempted{ false };
@@ -219,14 +220,20 @@ void Garage::StartSpawn() {
 
 void Garage::AddSelectedToGarage() {
     if (!chassisLoaded.load()) return;
-    if (selectedChassis < 0 || selectedChassis >= static_cast<int>(chassisOptions.size())) return;
     if (busy.exchange(true)) return;
 
     // Copy what the spawn needs while we are still on the render thread, then
     // hand the state over; PumpSpawn advances it on the script thread
     SpawnContext run;
-    run.chassisName = chassisOptions[selectedChassis].name;
-    run.chassisValue = chassisOptions[selectedChassis].raw;
+    {
+        std::lock_guard<std::mutex> lock(chassisMutex);
+        if (selectedChassis < 0 || selectedChassis >= static_cast<int>(chassisOptions.size())) {
+            busy.store(false, std::memory_order_release);
+            return;
+        }
+        run.chassisName = chassisOptions[selectedChassis].name;
+        run.chassisValue = chassisOptions[selectedChassis].raw;
+    }
     run.overrides = spawnOverrides;
 
     MainThread::Post([run]() {
@@ -249,15 +256,25 @@ void Garage::LoadChassisOptionsNow() {
 
     // The first two members are null_type and generic, not real chassis
     std::vector<Il2Cpp::EnumMember> members = Il2Cpp::GetEnumMembers(chassisEnum);
-    chassisOptions.clear();
-    if (members.size() > 2) chassisOptions.reserve(members.size() - 2);
+
+    std::vector<ChassisOption> options;
+    if (members.size() > 2) options.reserve(members.size() - 2);
     for (size_t i = 2; i < members.size(); ++i) {
-        chassisOptions.push_back({members[i].name, std::move(members[i].raw)});
+        options.push_back({members[i].name, std::move(members[i].raw)});
     }
 
-    chassisLoaded.store(!chassisOptions.empty());
-    if (chassisLoaded.load()) {
-        status.Set("Loaded " + std::to_string(chassisOptions.size()) + " chassis types");
+    const size_t optionCount = options.size();
+
+    // Swap the finished list in under the lock so the render thread never sees
+    // a half-rebuilt vector
+    {
+        std::lock_guard<std::mutex> lock(chassisMutex);
+        chassisOptions = std::move(options);
+    }
+
+    chassisLoaded.store(optionCount != 0);
+    if (optionCount != 0) {
+        status.Set("Loaded " + std::to_string(optionCount) + " chassis types");
     } else {
         status.Set("No chassis values found");
     }
@@ -348,16 +365,33 @@ void Garage::RenderTab() {
             LoadChassisOptions(true);
         }
     } else {
-        if (selectedChassis < 0 || selectedChassis >= static_cast<int>(chassisOptions.size())) {
+        // Copy the list so the script thread can replace it without racing the widgets
+        std::vector<ChassisOption> options;
+        {
+            std::lock_guard<std::mutex> lock(chassisMutex);
+            options = chassisOptions;
+        }
+
+        if (options.empty()) {
+            ImGui::TextUnformatted("No chassis types available.");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Refresh")) {
+                LoadChassisOptions(true);
+            }
+            ImGui::EndTabItem();
+            return;
+        }
+
+        if (selectedChassis < 0 || selectedChassis >= static_cast<int>(options.size())) {
             selectedChassis = 0;
         }
 
-        const char* preview = chassisOptions[selectedChassis].name.c_str();
+        const char* preview = options[selectedChassis].name.c_str();
         ImGui::SetNextItemWidth(160.0f);
         if (ImGui::BeginCombo("##carCombo", preview)) {
-            for (int i = 0; i < static_cast<int>(chassisOptions.size()); ++i) {
+            for (int i = 0; i < static_cast<int>(options.size()); ++i) {
                 const bool selected = (i == selectedChassis);
-                if (ImGui::Selectable(chassisOptions[i].name.c_str(), selected)) {
+                if (ImGui::Selectable(options[i].name.c_str(), selected)) {
                     selectedChassis = i;
                 }
                 if (selected) ImGui::SetItemDefaultFocus();

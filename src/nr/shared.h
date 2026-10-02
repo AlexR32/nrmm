@@ -103,12 +103,13 @@ public:
     // Reads mainMenu.mainMenu_mode. Returns false when the mainMenu object is not present
     static bool GetMainMenuMode(MainMenuMode& outMode);
 
-    // True while the main menu is up
+    // True while the main menu is up. Written on the script thread and read by
+    // the render thread, so published atomically
     static bool IsInMainMenu();
-    static inline bool inMainMenu = false;
+    static inline std::atomic_bool inMainMenu{ false };
 
     static bool IsInGarage();
-    static inline bool inGarage = false;
+    static inline std::atomic_bool inGarage{ false };
 
     // A game is loaded and the script thread has been identified, so game
     // actions can be queued through MainThread.

@@ -4,26 +4,29 @@
 #include "core/logger.h"
 #include "core/menu.h"
 #include "il2cpp/il2cpp.h"
+#include "nr/hooks.h"
 
 HMODULE g_hModule = nullptr;
 std::atomic_bool g_Running = false;
-std::string g_DllPath = "";
+std::wstring g_DllPath = L"";
+static HANDLE g_imguiThread = nullptr;
 
-static std::string GetDllPath(HMODULE hModule) {
-    CHAR buffer[MAX_PATH]{};
-    GetModuleFileNameA(hModule, buffer, MAX_PATH);
-    std::string::size_type pos = std::string(buffer).find_last_of("\\/");
-    return std::string(buffer).substr(0, pos);
+static std::wstring GetDllPath(HMODULE hModule) {
+    WCHAR buffer[MAX_PATH]{};
+    GetModuleFileNameW(hModule, buffer, MAX_PATH);
+    std::wstring::size_type pos = std::wstring(buffer).find_last_of(L"\\/");
+    return std::wstring(buffer).substr(0, pos);
 }
 
 static DWORD WINAPI WaitForImGuiThread(LPVOID) {
-    while (!D3D11Hook::initialized) {
-        Logger::Log("Waiting for Direct3D hook...");
+    Logger::Log("Waiting for the Direct3D Present hook...");
+
+    while (g_Running.load(std::memory_order_acquire) && !D3D11Hook::initialized)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
+
+    if (!g_Running.load(std::memory_order_acquire)) return 0;
 
     Logger::Log("Direct3D initialized");
-    Logger::Log("Direct3D hook initialized successfully");
     Logger::Log("Initializing menu...");
 
     Menu::Initialize();
@@ -43,40 +46,54 @@ static DWORD WINAPI MainThread(LPVOID hModule) {
 
     if (!Il2Cpp::Initialize()) {
         MessageBoxA(nullptr, "An error occurred while initializing il2cpp", "NRMM - Error", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        MH_Uninitialize();
         FreeLibraryAndExitThread(g_hModule, EXIT_SUCCESS);
         return EXIT_SUCCESS;
     }
 
     if (!D3D11Hook::Initialize()) {
         MessageBoxA(nullptr, "An error occurred while hooking Direct3D", "NRMM - Error", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        MH_Uninitialize();
         FreeLibraryAndExitThread(g_hModule, EXIT_SUCCESS);
         return EXIT_SUCCESS;
     }
 
     g_DllPath = GetDllPath(g_hModule);
 
-    Logger::Initialize(g_DllPath, "nrmm");
+    Logger::Initialize(g_DllPath, L"nrmm");
     Logger::SetTitle("[NRMM] Debug Console");
     Logger::SetVisibility(false);
 
     g_Running.store(true, std::memory_order_release);
 
-    HANDLE imguiThread = CreateThread(nullptr, 0, WaitForImGuiThread, nullptr, 0, nullptr);
+    g_imguiThread = CreateThread(nullptr, 0, WaitForImGuiThread, nullptr, 0, nullptr);
 
-    if (imguiThread) {
-        CloseHandle(imguiThread);
-    } else {
+    if (!g_imguiThread) {
         Logger::Log("Failed to create ImGui waiting thread");
         g_Running.store(false, std::memory_order_release);
     }
 
+    // Install the script-thread hook from this worker loop rather than from the
+    // render callback, keeping il2cpp reflection and MinHook off the Present thread
     while (g_Running.load(std::memory_order_acquire)) {
+        Hooks::EnsureInstalled();
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     // EXIT
-    Menu::Shutdown();
+    // g_Running is already false, so the menu thread leaves its wait and, if it
+    // got that far, finishes Menu::Initialize. Joining it here keeps Shutdown
+    // from racing an in-progress Initialize and leaking the input hooks.
+    if (g_imguiThread) {
+        WaitForSingleObject(g_imguiThread, 10000);
+        CloseHandle(g_imguiThread);
+        g_imguiThread = nullptr;
+    }
+
+    // Stop the render pipeline first so no detour can reach the mod after the
+    // script-thread hook and input hooks are removed
     D3D11Hook::Cleanup();
+    Menu::Shutdown();
     MH_Uninitialize();
     Logger::Cleanup();
     FreeLibraryAndExitThread(g_hModule, EXIT_SUCCESS);

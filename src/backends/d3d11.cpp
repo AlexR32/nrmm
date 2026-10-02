@@ -6,15 +6,24 @@ void D3D11Hook::InitializeImGui() {
         ImGui::CreateContext();
         ImGui_ImplWin32_Init(hWnd);
         ImGui_ImplDX11_Init(device, context);
-        oWndProc = reinterpret_cast<WNDPROC>(SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(hkWndProc)));
+
+        // The window proc is swapped on the Present thread while the window's
+        // owning thread may already be dispatching messages, so publish the old
+        // proc atomically and let hkWndProc fall back until it is visible.
+        WNDPROC previous = reinterpret_cast<WNDPROC>(SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(hkWndProc)));
+        oWndProc.store(previous, std::memory_order_release);
+
         imguiInitialized = true;
     }
 }
 
 void D3D11Hook::ShutdownImGui() {
     if (imguiInitialized) {
-        if (IsWindow(hWnd))
-            SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(oWndProc));
+        WNDPROC original = oWndProc.load(std::memory_order_acquire);
+        if (original && IsWindow(hWnd))
+            SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(original));
+        oWndProc.store(nullptr, std::memory_order_release);
+
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
@@ -23,6 +32,8 @@ void D3D11Hook::ShutdownImGui() {
 }
 
 void D3D11Hook::CreateRenderTarget(IDXGISwapChain* pSwapChain) {
+    if (!pSwapChain || !device) return;
+
     ID3D11Texture2D* pBackBuffer = nullptr;
     if (SUCCEEDED(pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer)))) {
         HRESULT hr = device->CreateRenderTargetView(pBackBuffer, nullptr, &renderTargetView);
@@ -98,27 +109,63 @@ bool D3D11Hook::GetDeviceAndSwapChain() {
     return SUCCEEDED(hr);
 }
 
-void D3D11Hook::InitializeHooks() {
+bool D3D11Hook::InitializeHooks() {
+    if (!dummySwapChain) return false;
+
     uintptr_t* vtable = *reinterpret_cast<uintptr_t**>(dummySwapChain);
     pPresent = reinterpret_cast<void*>(vtable[8]);
     pResizeBuffers = reinterpret_cast<void*>(vtable[13]);
 
-    MH_CreateHook(pPresent, reinterpret_cast<void*>(&hkPresent), reinterpret_cast<void**>(&oPresent));
-    MH_CreateHook(pResizeBuffers, reinterpret_cast<void*>(&hkResizeBuffers), reinterpret_cast<void**>(&oResizeBuffers));
-    MH_EnableHook(pPresent);
-    MH_EnableHook(pResizeBuffers);
+    if (MH_CreateHook(pPresent, reinterpret_cast<void*>(&hkPresent), reinterpret_cast<void**>(&oPresent)) != MH_OK)
+        return false;
+
+    if (MH_CreateHook(pResizeBuffers, reinterpret_cast<void*>(&hkResizeBuffers), reinterpret_cast<void**>(&oResizeBuffers)) != MH_OK) {
+        MH_RemoveHook(pPresent);
+        pPresent = nullptr;
+        oPresent = nullptr;
+        return false;
+    }
+
+    if (MH_EnableHook(pPresent) != MH_OK || MH_EnableHook(pResizeBuffers) != MH_OK) {
+        MH_DisableHook(pPresent);
+        MH_DisableHook(pResizeBuffers);
+        MH_RemoveHook(pPresent);
+        MH_RemoveHook(pResizeBuffers);
+        pPresent = nullptr;
+        pResizeBuffers = nullptr;
+        oPresent = nullptr;
+        oResizeBuffers = nullptr;
+        return false;
+    }
+
+    return true;
 }
 
 LRESULT CALLBACK D3D11Hook::hkWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    HookScope scope;
+
+    WNDPROC original = oWndProc.load(std::memory_order_acquire);
+
+    // Until the old proc is published the subclass cannot safely chain, and
+    // during unload ImGui is about to be destroyed.
+    if (!original || unloading.load(std::memory_order_acquire))
+        return original ? CallWindowProc(original, hWnd, uMsg, wParam, lParam) : DefWindowProc(hWnd, uMsg, wParam, lParam);
+
     if (wndProcCallback) {
         if (wndProcCallback(hWnd, uMsg, wParam, lParam))
             return TRUE;
     }
 
-    return CallWindowProc(oWndProc, hWnd, uMsg, wParam, lParam);
+    return CallWindowProc(original, hWnd, uMsg, wParam, lParam);
 }
 
 HRESULT STDMETHODCALLTYPE D3D11Hook::hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags) {
+    // Count in first so Cleanup cannot remove the trampoline out from under an
+    // in-flight call
+    HookScope scope;
+    if (unloading.load(std::memory_order_acquire))
+        return oPresent(pSwapChain, SyncInterval, Flags);
+
     if (!initialized) {
         std::lock_guard<std::mutex> lock(initMutex);
         if (!initialized) {
@@ -184,6 +231,15 @@ HRESULT STDMETHODCALLTYPE D3D11Hook::hkPresent(IDXGISwapChain* pSwapChain, UINT 
 }
 
 HRESULT STDMETHODCALLTYPE D3D11Hook::hkResizeBuffers(IDXGISwapChain* pSwapChain, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags) {
+    HookScope scope;
+    if (unloading.load(std::memory_order_acquire))
+        return oResizeBuffers(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
+
+    // ResizeBuffers can arrive before the first Present has created the ImGui
+    // context, and for swapchains other than the one we hooked
+    if (pSwapChain != swapChain || !imguiInitialized || !device)
+        return oResizeBuffers(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
+
     ImGui_ImplDX11_InvalidateDeviceObjects();
     CleanupRenderTarget();
 
@@ -199,20 +255,32 @@ HRESULT STDMETHODCALLTYPE D3D11Hook::hkResizeBuffers(IDXGISwapChain* pSwapChain,
 
 bool D3D11Hook::Initialize() {
     if (!GetDeviceAndSwapChain()) return false;
-    InitializeHooks();
-    return true;
+    return InitializeHooks();
 }
 
 void D3D11Hook::Cleanup() {
-    MH_DisableHook(pPresent);
-    MH_DisableHook(pResizeBuffers);
-    MH_RemoveHook(pPresent);
-    MH_RemoveHook(pResizeBuffers);
+    unloading.store(true, std::memory_order_release);
+
+    if (pPresent) MH_DisableHook(pPresent);
+    if (pResizeBuffers) MH_DisableHook(pResizeBuffers);
+
+    // Let any detour already running on another thread observe the unload flag
+    // and leave before the ImGui context is destroyed.
+    while (inFlight.load(std::memory_order_acquire) != 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
     ShutdownImGui();
     CleanupRenderTarget();
     ReleaseGameObjects();
     ReleaseDummyObjects();
+
+    if (pPresent) MH_RemoveHook(pPresent);
+    if (pResizeBuffers) MH_RemoveHook(pResizeBuffers);
+
+    pPresent = nullptr;
+    pResizeBuffers = nullptr;
+    oPresent = nullptr;
+    oResizeBuffers = nullptr;
 
     swapChain = nullptr;
     initialized = false;

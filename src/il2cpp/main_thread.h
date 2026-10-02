@@ -24,9 +24,10 @@ public:
     static void Pump();
 
     // Runs a callable on the script thread. If the caller is already on it the
-    // task runs immediately, otherwise it is queued for the next Pump(). While
-    // the script thread is still unknown (the hook has not run yet) the task
-    // runs inline so a click made early is not silently dropped
+    // task runs immediately, otherwise it is queued for the next Pump(). It is
+    // never run inline from another thread, so a render-thread caller cannot
+    // end up invoking managed code by accident; early tasks simply wait until
+    // the script thread is bound
     static void Post(Task task);
 
     // True once the game hook has run at least once and identified the thread
@@ -38,6 +39,8 @@ public:
 
 private:
     static void BindCurrentThread();
+
+    static constexpr size_t kMaxQueuedTasks = 256;
 
     static std::thread::id boundId;
     static std::atomic_bool bound;

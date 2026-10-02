@@ -34,9 +34,6 @@ private:
     // thread. Each field is atomic so the widgets never race the writer
     struct Snapshot {
         std::atomic<int> raceCrewTypeIndex{-1};
-
-        std::atomic_bool trafficAvailable{ false };
-        std::atomic_bool trafficEnabled{ true };
     };
 
     static void ApplyRaceCrewType(int index);

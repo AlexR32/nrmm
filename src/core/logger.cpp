@@ -1,6 +1,7 @@
 #include <pch.h>
 #include "logger.h"
 #include <ctime>
+#include <cwchar>
 
 std::string Logger::GetTimestamp() {
     const std::time_t now = std::time(nullptr);
@@ -35,7 +36,18 @@ void Logger::WriteToFile(const wchar_t* message) {
     logFile.flush();
 }
 
-void Logger::Initialize(const std::string& logDirectory, const std::string& fileName) {
+// Writes Unicode directly to the console so characters outside the active code
+// page (e.g. Cyrillic) are preserved. Doesn't touch the C stdio orientation the
+// way mixing printf and wprintf did.
+void Logger::WriteConsoleLine(const wchar_t* message) {
+    if (!hConsole || !message) return;
+
+    DWORD written = 0;
+    WriteConsoleW(hConsole, message, static_cast<DWORD>(wcslen(message)), &written, nullptr);
+    WriteConsoleW(hConsole, L"\r\n", 2, &written, nullptr);
+}
+
+void Logger::Initialize(const std::wstring& logDirectory, const std::wstring& fileName) {
     std::lock_guard<std::mutex> lock(logMutex);
 
     if (!consoleAllocated) {
@@ -43,23 +55,34 @@ void Logger::Initialize(const std::string& logDirectory, const std::string& file
         consoleAllocated = true;
 
         consoleWnd = GetConsoleWindow();
+        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
         FILE* stream = nullptr;
         freopen_s(&stream, "CONOUT$", "w", stdout);
         freopen_s(&stream, "CONOUT$", "w", stderr);
-        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+        // UTF-8 code page so any narrow text handed to the CRT still renders
+        SetConsoleOutputCP(CP_UTF8);
+        SetConsoleCP(CP_UTF8);
     }
 
     if (!logFile.is_open()) {
-        std::string directory = logDirectory;
+        std::wstring directory = logDirectory;
         if (directory.empty()) {
-            directory = ".";
-        } else if (directory.back() != '\\' && directory.back() != '/') {
-            directory += '\\';
+            directory = L".";
+        } else if (directory.back() != L'\\' && directory.back() != L'/') {
+            directory += L'\\';
         }
 
-        logFilePath = directory + fileName + ".log";
-        logFile.open(logFilePath, std::ios::out | std::ios::trunc);
+        logFilePath = directory + fileName + L".log";
+
+        // MSVC's ofstream accepts a wide path, so non-ASCII directories resolve.
+        logFile.open(logFilePath.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
+        if (logFile.is_open()) {
+            static const char kUtf8Bom[] = "\xEF\xBB\xBF";
+            logFile.write(kUtf8Bom, 3);
+            logFile.flush();
+        }
     }
 }
 
@@ -118,7 +141,7 @@ std::wstring Logger::GetTitleW() {
     return std::wstring(buffer);
 }
 
-const std::string& Logger::GetLogFilePath() {
+const std::wstring& Logger::GetLogFilePath() {
     return logFilePath;
 }
 
@@ -133,10 +156,16 @@ void Logger::Log(const char* message, Color color) {
         const bool hasInfo = GetConsoleScreenBufferInfo(hConsole, &info) != FALSE;
 
         SetConsoleTextAttribute(hConsole, static_cast<WORD>(color));
-        std::printf("%s\n", message);
+
+        const int size = MultiByteToWideChar(CP_UTF8, 0, message, -1, nullptr, 0);
+        if (size > 1) {
+            std::wstring wide(static_cast<std::size_t>(size), L'\0');
+            MultiByteToWideChar(CP_UTF8, 0, message, -1, wide.data(), size);
+            wide.resize(static_cast<std::size_t>(size) - 1);
+            WriteConsoleLine(wide.c_str());
+        }
+
         if (hasInfo) SetConsoleTextAttribute(hConsole, info.wAttributes);
-    } else {
-        std::printf("%s\n", message);
     }
 
     WriteToFile(message);
@@ -157,10 +186,8 @@ void Logger::Log(const wchar_t* message, Color color) {
         const bool hasInfo = GetConsoleScreenBufferInfo(hConsole, &info) != FALSE;
 
         SetConsoleTextAttribute(hConsole, static_cast<WORD>(color));
-        std::wprintf(L"%s\n", message);
+        WriteConsoleLine(message);
         if (hasInfo) SetConsoleTextAttribute(hConsole, info.wAttributes);
-    } else {
-        std::wprintf(L"%s\n", message);
     }
 
     WriteToFile(message);

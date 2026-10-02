@@ -2,7 +2,8 @@
 
 #include <windows.h>
 #include <atomic>
+#include <string>
 
 extern HMODULE g_hModule;
 extern std::atomic_bool g_Running;
-extern std::string g_DllPath;
+extern std::wstring g_DllPath;

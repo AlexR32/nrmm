@@ -41,13 +41,16 @@ void MainThread::Pump() {
 void MainThread::Post(Task task) {
     if (!task) return;
 
-    if (!MainThreadKnown() || IsCurrentThread()) {
-        Il2Cpp::ThreadAttach();
+    if (IsCurrentThread()) {
         task();
         return;
     }
 
+    // Queue from every other thread, including the render thread, so managed
+    // code is only ever touched from the script thread. Before the hook binds
+    // the thread the queue simply holds the work
     std::lock_guard<std::mutex> lock(queueMutex);
+    if (queue.size() >= kMaxQueuedTasks) return;
     queue.push_back(std::move(task));
 }
 

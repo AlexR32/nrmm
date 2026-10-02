@@ -183,7 +183,7 @@ public:
 private:
     static HMODULE dll;
     static Il2CppDomain* pDomain;
-    static std::atomic<bool> initialized;
+    static std::atomic_bool initialized;
 
     static std::unordered_map<std::string, Il2CppImage*> imageCache;
     static std::unordered_map<std::string, Il2CppClass*> classCache;

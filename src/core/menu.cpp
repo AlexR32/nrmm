@@ -188,7 +188,6 @@ void Menu::Render() {
     // Managed code must run on the game's script thread; the GodConstant.Update
     // hook binds MainThread and pumps queued actions. Until it is up
     // Shared::GameReady() is false and no tab runs any game action
-    Hooks::EnsureInstalled();
 
     ImVec2 topCenter = ImVec2({io.DisplaySize.x * 0.5f, 0.0f});
     Overlay::TextOutlinedCentered("NRMM | alexr32 @ discord.com", topCenter);

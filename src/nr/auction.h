@@ -39,8 +39,6 @@ private:
     static Il2CppObject* ListGet(Il2CppObject* list, int index);
     static void ListClear(Il2CppObject* list);
 
-    static void RenderLabel(const char* text);
-
     static void RefreshAuction();
     static void UnlockAllAuctionCars();
 

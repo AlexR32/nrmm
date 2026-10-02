@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <functional>
 #include <mutex>
+#include <atomic>
 #include <d3d11.h>
 
 class D3D11Hook {
@@ -14,7 +15,8 @@ public:
     static bool Initialize();
     static void Cleanup();
 
-    static inline bool initialized = false;
+    // Read by the initialization-wait thread while Present writes it
+    static inline std::atomic_bool initialized{ false };
     static inline bool imguiInitialized = false;
 
     static inline IDXGISwapChain* swapChain = nullptr;
@@ -27,7 +29,7 @@ public:
     static void RegisterNewFrameCallback(NewFrameCallback callback) { newFrameCallback = callback; }
 private:
     static inline HWND hWnd = nullptr;
-    static inline WNDPROC oWndProc = nullptr;
+    static inline std::atomic<WNDPROC> oWndProc{ nullptr };
 
     static inline IDXGISwapChain* dummySwapChain = nullptr;
     static inline ID3D11Device* dummyDevice = nullptr;
@@ -40,6 +42,18 @@ private:
     static inline std::mutex initMutex;
     static inline bool gameObjectsAcquired = false;
 
+    // Set before the present/resize hooks are disabled. In-flight hooks check it
+    // so they stop touching ImGui, and Cleanup waits for inFlight to reach zero
+    // before tearing the context down. Without this a detour running on the
+    // render thread could use a destroyed ImGui context during unload.
+    static inline std::atomic_bool unloading{ false };
+    static inline std::atomic_int inFlight{ 0 };
+
+    struct HookScope {
+        HookScope() { inFlight.fetch_add(1, std::memory_order_acq_rel); }
+        ~HookScope() { inFlight.fetch_sub(1, std::memory_order_acq_rel); }
+    };
+
     static void ReleaseDummyObjects();
     static void ReleaseGameObjects();
 
@@ -50,7 +64,7 @@ private:
     static void CleanupRenderTarget();
 
     static bool GetDeviceAndSwapChain();
-    static void InitializeHooks();
+    static bool InitializeHooks();
 
     static LRESULT CALLBACK hkWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 

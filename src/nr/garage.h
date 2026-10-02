@@ -5,6 +5,7 @@
 #include "nr/shared.h"
 #include <atomic>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -89,7 +90,9 @@ private:
     static Shared::Sequence spawn;
     static SpawnContext ctx;
 
+    // Written on the script thread, copied under the mutex on the render thread
     static std::vector<ChassisOption> chassisOptions;
+    static std::mutex chassisMutex;
     static int selectedChassis;
     static std::atomic_bool chassisLoaded;
     static std::atomic_bool chassisLoadAttempted;

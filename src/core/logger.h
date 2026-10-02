@@ -2,7 +2,6 @@
 
 #include <windows.h>
 #include <string>
-#include <cstdio>
 #include <fstream>
 #include <mutex>
 #include <format>
@@ -15,12 +14,13 @@ private:
     static inline HWND consoleWnd = nullptr;
 
     static inline std::ofstream logFile;
-    static inline std::string logFilePath;
+    static inline std::wstring logFilePath;
     static inline std::mutex logMutex;
 
     static std::string GetTimestamp();
     static void WriteToFile(const char* message);
     static void WriteToFile(const wchar_t* message);
+    static void WriteConsoleLine(const wchar_t* message);
 
 public:
     enum class Color : WORD {
@@ -38,9 +38,10 @@ public:
 public:
     Logger() = delete;
 
-    // Allocates a console and opens "<logDirectory>\nrmm.log" for writing, purging any existing contents.
+    // Allocates a console and opens "<logDirectory>\<fileName>.log" for writing, purging any existing contents.
+    // The path is kept wide so directories containing non-ASCII (e.g. Cyrillic) characters work.
     // When logDirectory is empty the current working directory is used.
-    static void Initialize(const std::string& logDirectory, const std::string& fileName);
+    static void Initialize(const std::wstring& logDirectory, const std::wstring& fileName);
     static void Cleanup();
 
     static void SetVisibility(bool visible);
@@ -53,7 +54,7 @@ public:
     static std::string GetTitleA();
     static std::wstring GetTitleW();
 
-    static const std::string& GetLogFilePath();
+    static const std::wstring& GetLogFilePath();
 
     // Simple logging narrow
     static void Log(const char* message, Color color = Color::Default);

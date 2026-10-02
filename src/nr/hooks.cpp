@@ -15,8 +15,10 @@
 
 Hooks::GodConstantUpdateFn Hooks::originalGodConstantUpdate = nullptr;
 void* Hooks::godConstantUpdateTarget = nullptr;
-bool Hooks::installed = false;
-int Hooks::installAttempts = 0;
+std::atomic_bool Hooks::installed{ false };
+std::atomic_bool Hooks::active{ false };
+std::atomic_int Hooks::inFlight{ 0 };
+
 
 void* Hooks::GetMethodPointer(const MethodInfo* method) {
     if (!method) return nullptr;
@@ -27,6 +29,14 @@ void* Hooks::GetMethodPointer(const MethodInfo* method) {
 }
 
 void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodInfo* method) {
+    // Count in first so Remove cannot free the trampoline out from under an
+    // in-flight call
+    HookScope scope;
+    if (!active.load(std::memory_order_acquire)) {
+        if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
+        return;
+    }
+
     // We are on the script/main thread here: bind it and run every menu action
     // that the render thread handed over this frame
     MainThread::Pump();
@@ -52,7 +62,11 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
 }
 
 bool Hooks::Install() {
-    if (installed) return true;
+    if (installed.load(std::memory_order_acquire)) return true;
+
+    // This runs off the script thread, so make sure the calling thread can use
+    // the managed runtime
+    Il2Cpp::ThreadAttach();
 
     Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
     if (!godClass) return false;
@@ -76,24 +90,29 @@ bool Hooks::Install() {
     }
 
     godConstantUpdateTarget = target;
-    installed = true;
+    active.store(true, std::memory_order_release);
+    installed.store(true, std::memory_order_release);
     Logger::Log("[Hooks] GodConstant.Update hooked, pumping on the script thread");
     return true;
 }
 
 void Hooks::EnsureInstalled() {
-    if (installed) return;
-    if (installAttempts++ % 60 != 0) return;
-    Install();
+    if (!installed.load(std::memory_order_acquire)) Install();
 }
 
 void Hooks::Remove() {
-    if (!installed || !godConstantUpdateTarget) return;
+    if (!installed.exchange(false, std::memory_order_acq_rel)) return;
 
-    MH_DisableHook(godConstantUpdateTarget);
-    MH_RemoveHook(godConstantUpdateTarget);
+    active.store(false, std::memory_order_release);
+
+    if (godConstantUpdateTarget) MH_DisableHook(godConstantUpdateTarget);
+
+    // Wait for a detour already running on the script thread to fall through
+    while (inFlight.load(std::memory_order_acquire) != 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    if (godConstantUpdateTarget) MH_RemoveHook(godConstantUpdateTarget);
 
     godConstantUpdateTarget = nullptr;
     originalGodConstantUpdate = nullptr;
-    installed = false;
 }
