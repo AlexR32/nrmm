@@ -61,7 +61,6 @@ static DWORD WINAPI MainThread(LPVOID hModule) {
     g_DllPath = GetDllPath(g_hModule);
 
     Logger::Initialize(g_DllPath, L"nrmm");
-    Logger::SetTitle("[NRMM] Debug Console");
     Logger::SetVisibility(false);
 
     g_Running.store(true, std::memory_order_release);

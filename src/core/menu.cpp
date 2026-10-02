@@ -170,7 +170,7 @@ void Menu::RenderSettingsTab() {
     }
 
     bool showConsole = Logger::GetVisibility();
-    if (ImGui::Checkbox("Show Console", &showConsole)) {
+    if (ImGui::Checkbox("Show Debug Console", &showConsole)) {
         Logger::SetVisibility(showConsole);
     }
 
@@ -191,6 +191,10 @@ void Menu::Render() {
 
     ImVec2 topCenter = ImVec2({io.DisplaySize.x * 0.5f, 0.0f});
     Overlay::TextOutlinedCentered("NRMM | alexr32 @ discord.com", topCenter);
+
+    // The debug console is independent of the main menu, so draw it even when
+    // the menu itself is hidden.
+    Logger::Render();
 
     if (!visible) return;
 
@@ -237,6 +241,8 @@ LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return TRUE;
     }
 
+    // The debug console renders independently but only becomes interactive while
+    // the main menu is open, so a hidden cursor cannot move it during play.
     if (!visible.load(std::memory_order_relaxed)) return FALSE;
 
     if (ShouldForwardToImGui(uMsg)) {

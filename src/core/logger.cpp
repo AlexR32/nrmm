@@ -1,7 +1,21 @@
 #include <pch.h>
 #include "logger.h"
 #include <ctime>
-#include <cwchar>
+
+ImVec4 Logger::ToImVec4(Color color) {
+    switch (color) {
+    case Color::Red: return ImVec4(1.00f, 0.35f, 0.35f, 1.0f);
+    case Color::Green: return ImVec4(0.40f, 1.00f, 0.40f, 1.0f);
+    case Color::Blue: return ImVec4(0.45f, 0.60f, 1.00f, 1.0f);
+    case Color::Yellow: return ImVec4(1.00f, 0.90f, 0.35f, 1.0f);
+    case Color::Cyan: return ImVec4(0.40f, 1.00f, 1.00f, 1.0f);
+    case Color::Magenta: return ImVec4(1.00f, 0.50f, 1.00f, 1.0f);
+    case Color::White: return ImVec4(1.00f, 1.00f, 1.00f, 1.0f);
+    case Color::Gray: return ImVec4(0.60f, 0.60f, 0.60f, 1.0f);
+    case Color::Default:
+    default: return ImVec4(0.90f, 0.90f, 0.90f, 1.0f);
+    }
+}
 
 std::string Logger::GetTimestamp() {
     const std::time_t now = std::time(nullptr);
@@ -15,6 +29,18 @@ std::string Logger::GetTimestamp() {
     return std::string(buffer);
 }
 
+std::string Logger::WideToUtf8(const wchar_t* message) {
+    if (!message) return {};
+
+    const int size = WideCharToMultiByte(CP_UTF8, 0, message, -1, nullptr, 0, nullptr, nullptr);
+    if (size <= 1) return {};
+
+    std::string utf8(static_cast<std::size_t>(size), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, message, -1, utf8.data(), size, nullptr, nullptr);
+    utf8.resize(static_cast<std::size_t>(size) - 1);
+    return utf8;
+}
+
 void Logger::WriteToFile(const char* message) {
     if (!logFile.is_open() || !message) return;
 
@@ -25,46 +51,15 @@ void Logger::WriteToFile(const char* message) {
 void Logger::WriteToFile(const wchar_t* message) {
     if (!logFile.is_open() || !message) return;
 
-    const int size = WideCharToMultiByte(CP_UTF8, 0, message, -1, nullptr, 0, nullptr, nullptr);
-    if (size <= 1) return;
-
-    std::string utf8(static_cast<std::size_t>(size), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, message, -1, utf8.data(), size, nullptr, nullptr);
-    utf8.resize(static_cast<std::size_t>(size) - 1);
+    const std::string utf8 = WideToUtf8(message);
+    if (utf8.empty()) return;
 
     logFile << GetTimestamp() << utf8 << '\n';
     logFile.flush();
 }
 
-// Writes Unicode directly to the console so characters outside the active code
-// page (e.g. Cyrillic) are preserved. Doesn't touch the C stdio orientation the
-// way mixing printf and wprintf did.
-void Logger::WriteConsoleLine(const wchar_t* message) {
-    if (!hConsole || !message) return;
-
-    DWORD written = 0;
-    WriteConsoleW(hConsole, message, static_cast<DWORD>(wcslen(message)), &written, nullptr);
-    WriteConsoleW(hConsole, L"\r\n", 2, &written, nullptr);
-}
-
 void Logger::Initialize(const std::wstring& logDirectory, const std::wstring& fileName) {
     std::lock_guard<std::mutex> lock(logMutex);
-
-    if (!consoleAllocated) {
-        AllocConsole();
-        consoleAllocated = true;
-
-        consoleWnd = GetConsoleWindow();
-        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-
-        FILE* stream = nullptr;
-        freopen_s(&stream, "CONOUT$", "w", stdout);
-        freopen_s(&stream, "CONOUT$", "w", stderr);
-
-        // UTF-8 code page so any narrow text handed to the CRT still renders
-        SetConsoleOutputCP(CP_UTF8);
-        SetConsoleCP(CP_UTF8);
-    }
 
     if (!logFile.is_open()) {
         std::wstring directory = logDirectory;
@@ -95,54 +90,27 @@ void Logger::Cleanup() {
     }
     logFilePath.clear();
 
-    if (consoleAllocated) {
-        fclose(stdout);
-        fclose(stderr);
-
-        hConsole = nullptr;
-        consoleWnd = nullptr;
-
-        FreeConsole();
-        consoleAllocated = false;
-    }
+    entries.clear();
+    lastRenderedCount = 0;
+    visible.store(false, std::memory_order_relaxed);
 }
 
-void Logger::SetVisibility(bool visible) {
-    if (!consoleWnd) return;
-
-    ShowWindow(consoleWnd, visible ? SW_SHOW : SW_HIDE);
+void Logger::SetVisibility(bool show) {
+    visible.store(show, std::memory_order_relaxed);
 }
 
 bool Logger::GetVisibility() {
-    return consoleWnd && IsWindowVisible(consoleWnd) != FALSE;
-}
-
-void Logger::SetTitle(const char* title) {
-    SetConsoleTitleA(title);
-}
-
-void Logger::SetTitle(const std::string& title) {
-    SetConsoleTitleA(title.c_str());
-}
-
-void Logger::SetTitle(const std::wstring& title) {
-    SetConsoleTitleW(title.c_str());
-}
-
-std::string Logger::GetTitleA() {
-    char buffer[1024] = {0};
-    GetConsoleTitleA(buffer, 1024);
-    return std::string(buffer);
-}
-
-std::wstring Logger::GetTitleW() {
-    wchar_t buffer[1024] = {0};
-    GetConsoleTitleW(buffer, 1024);
-    return std::wstring(buffer);
+    return visible.load(std::memory_order_relaxed);
 }
 
 const std::wstring& Logger::GetLogFilePath() {
     return logFilePath;
+}
+
+void Logger::Clear() {
+    std::lock_guard<std::mutex> lock(logMutex);
+    entries.clear();
+    lastRenderedCount = 0;
 }
 
 // Simple logging narrow
@@ -151,22 +119,9 @@ void Logger::Log(const char* message, Color color) {
     if (!message) return;
     std::lock_guard<std::mutex> lock(logMutex);
 
-    if (hConsole) {
-        CONSOLE_SCREEN_BUFFER_INFO info;
-        const bool hasInfo = GetConsoleScreenBufferInfo(hConsole, &info) != FALSE;
-
-        SetConsoleTextAttribute(hConsole, static_cast<WORD>(color));
-
-        const int size = MultiByteToWideChar(CP_UTF8, 0, message, -1, nullptr, 0);
-        if (size > 1) {
-            std::wstring wide(static_cast<std::size_t>(size), L'\0');
-            MultiByteToWideChar(CP_UTF8, 0, message, -1, wide.data(), size);
-            wide.resize(static_cast<std::size_t>(size) - 1);
-            WriteConsoleLine(wide.c_str());
-        }
-
-        if (hasInfo) SetConsoleTextAttribute(hConsole, info.wAttributes);
-    }
+    entries.push_back({GetTimestamp() + message, color});
+    if (entries.size() > kMaxEntries)
+        entries.erase(entries.begin(), entries.begin() + (entries.size() - kMaxEntries));
 
     WriteToFile(message);
 }
@@ -181,18 +136,60 @@ void Logger::Log(const wchar_t* message, Color color) {
     if (!message) return;
     std::lock_guard<std::mutex> lock(logMutex);
 
-    if (hConsole) {
-        CONSOLE_SCREEN_BUFFER_INFO info;
-        const bool hasInfo = GetConsoleScreenBufferInfo(hConsole, &info) != FALSE;
+    const std::string utf8 = WideToUtf8(message);
+    if (utf8.empty()) return;
 
-        SetConsoleTextAttribute(hConsole, static_cast<WORD>(color));
-        WriteConsoleLine(message);
-        if (hasInfo) SetConsoleTextAttribute(hConsole, info.wAttributes);
-    }
+    entries.push_back({GetTimestamp() + utf8, color});
+    if (entries.size() > kMaxEntries)
+        entries.erase(entries.begin(), entries.begin() + (entries.size() - kMaxEntries));
 
     WriteToFile(message);
 }
 
 void Logger::Log(const std::wstring& message, Color color) {
     Log(message.c_str(), color);
+}
+
+void Logger::Render() {
+    if (!visible.load(std::memory_order_relaxed)) return;
+
+    ImGui::SetNextWindowSize(ImVec2(640.0f, 360.0f), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Debug Console", nullptr, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse)) {
+        if (ImGui::Button("Clear")) {
+            Clear();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Copy")) {
+            std::string all;
+            {
+                std::lock_guard<std::mutex> lock(logMutex);
+                for (const Entry& entry : entries) {
+                    all += entry.text;
+                    all += '\n';
+                }
+            }
+            if (!all.empty())
+                ImGui::SetClipboardText(all.c_str());
+        }
+        ImGui::SameLine();
+        ImGui::Checkbox("Auto-scroll", &autoScroll);
+
+        ImGui::Separator();
+
+        ImGui::BeginChild("log_scroll", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar);
+        {
+            std::lock_guard<std::mutex> lock(logMutex);
+            for (const Entry& entry : entries) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ToImVec4(entry.color));
+                ImGui::TextUnformatted(entry.text.c_str());
+                ImGui::PopStyleColor();
+            }
+
+            if (autoScroll && entries.size() != lastRenderedCount)
+                ImGui::SetScrollHereY(1.0f);
+            lastRenderedCount = entries.size();
+        }
+        ImGui::EndChild();
+    }
+    ImGui::End();
 }

@@ -4,24 +4,14 @@
 #include <string>
 #include <fstream>
 #include <mutex>
+#include <vector>
 #include <format>
 #include <utility>
+#include <atomic>
+#include <cstddef>
+#include "libs/imgui/imgui.h"
 
 class Logger {
-private:
-    static inline bool consoleAllocated = false;
-    static inline HANDLE hConsole = nullptr;
-    static inline HWND consoleWnd = nullptr;
-
-    static inline std::ofstream logFile;
-    static inline std::wstring logFilePath;
-    static inline std::mutex logMutex;
-
-    static std::string GetTimestamp();
-    static void WriteToFile(const char* message);
-    static void WriteToFile(const wchar_t* message);
-    static void WriteConsoleLine(const wchar_t* message);
-
 public:
     enum class Color : WORD {
         Default = 7, // FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
@@ -35,10 +25,33 @@ public:
         Gray = FOREGROUND_INTENSITY,
     };
 
+private:
+    struct Entry {
+        std::string text;
+        Color color;
+    };
+
+    static constexpr std::size_t kMaxEntries = 2000;
+
+    static inline std::vector<Entry> entries;
+    static inline std::atomic_bool visible{false};
+    static inline bool autoScroll = true;
+    static inline std::size_t lastRenderedCount = 0;
+
+    static inline std::ofstream logFile;
+    static inline std::wstring logFilePath;
+    static inline std::mutex logMutex;
+
+    static std::string GetTimestamp();
+    static std::string WideToUtf8(const wchar_t* message);
+    static ImVec4 ToImVec4(Color color);
+    static void WriteToFile(const char* message);
+    static void WriteToFile(const wchar_t* message);
+
 public:
     Logger() = delete;
 
-    // Allocates a console and opens "<logDirectory>\<fileName>.log" for writing, purging any existing contents.
+    // Opens "<logDirectory>\<fileName>.log" for writing, purging any existing contents.
     // The path is kept wide so directories containing non-ASCII (e.g. Cyrillic) characters work.
     // When logDirectory is empty the current working directory is used.
     static void Initialize(const std::wstring& logDirectory, const std::wstring& fileName);
@@ -47,14 +60,13 @@ public:
     static void SetVisibility(bool visible);
     static bool GetVisibility();
 
-    static void SetTitle(const char* title);
-    static void SetTitle(const std::string& title);
-    static void SetTitle(const std::wstring& title);
-
-    static std::string GetTitleA();
-    static std::wstring GetTitleW();
-
     static const std::wstring& GetLogFilePath();
+
+    static void Clear();
+
+    // Draws the in-game console window. Must be called from the render thread.
+    // Safe to call every frame; it does nothing while hidden.
+    static void Render();
 
     // Simple logging narrow
     static void Log(const char* message, Color color = Color::Default);
