@@ -14,7 +14,7 @@ The menu is opened with `INS` and has the following tabs
 - **Player**
   - Set the player race crew type
   - Toggle traffic
-  - Meetspot owner editor (crew and strength, saved through the game's ES3 accessors)
+  - Meetspot owner editor
   - End the current night
   - Unlock all parts
 - **World**
@@ -36,7 +36,7 @@ The menu is opened with `INS` and has the following tabs
   - Refresh the auction listing
   - Unlock every chassis for sale
 
-A status line under each tab reports the result of the last action and is mirrored to the log
+A status line under each tab reports the result of the last action and is mirrored to the debug console
 
 ## Usage
 
@@ -47,13 +47,10 @@ A status line under each tab reports the result of the last action and is mirror
 
 Controls and behaviour:
 
-| Input / action      | Effect                         |
-| ------------------- | ------------------------------ |
-| `INS`               | Toggle the menu                |
-| `DELETE`            | Unload the DLL                 |
-| Settings > UNHOOK   | Unload the DLL from the menu   |
-
-The mod writes a `nrmm.log` next to the DLL and, when enabled, opens a debug console titled `[NRMM] Debug Console`
+| Input      | Effect            |
+| ---------- | ----------------- |
+| `INS`      | Toggle the menu   |
+| `DELETE`   | Unload the DLL    |
 
 ## Building
 
