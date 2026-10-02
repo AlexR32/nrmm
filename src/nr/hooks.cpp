@@ -9,6 +9,7 @@
 #include "current_car.h"
 #include "fixes.h"
 #include "shared.h"
+#include "backends/d3d11.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
 #include "core/logger.h"
@@ -32,7 +33,11 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
     // Count in first so Remove cannot free the trampoline out from under an
     // in-flight call
     HookScope scope;
-    if (!active.load(std::memory_order_acquire)) {
+
+    // Once the game starts quitting, stop touching managed state entirely:
+    // Unity is tearing the runtime down and invoking into it here is what makes
+    // a graceful quit hang
+    if (!active.load(std::memory_order_acquire) || D3D11Hook::shuttingDown.load(std::memory_order_acquire)) {
         if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
         return;
     }
@@ -63,10 +68,6 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
 
 bool Hooks::Install() {
     if (installed.load(std::memory_order_acquire)) return true;
-
-    // This runs off the script thread, so make sure the calling thread can use
-    // the managed runtime
-    Il2Cpp::ThreadAttach();
 
     Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
     if (!godClass) return false;
@@ -107,9 +108,13 @@ void Hooks::Remove() {
 
     if (godConstantUpdateTarget) MH_DisableHook(godConstantUpdateTarget);
 
-    // Wait for a detour already running on the script thread to fall through
-    while (inFlight.load(std::memory_order_acquire) != 0)
+    // Wait for a detour already running on the script thread to fall through.
+    // Bounded so a detour wedged in game code during teardown cannot hang.
+    const std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+    while (inFlight.load(std::memory_order_acquire) != 0) {
+        if (std::chrono::steady_clock::now() >= deadline) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 
     if (godConstantUpdateTarget) MH_RemoveHook(godConstantUpdateTarget);
 

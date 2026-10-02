@@ -80,6 +80,8 @@ static DWORD WINAPI MainThread(LPVOID hModule) {
     }
 
     // EXIT
+    D3D11Hook::shuttingDown.store(true, std::memory_order_release);
+
     // g_Running is already false, so the menu thread leaves its wait and, if it
     // got that far, finishes Menu::Initialize. Joining it here keeps Shutdown
     // from racing an in-progress Initialize and leaking the input hooks.

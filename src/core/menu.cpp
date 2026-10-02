@@ -175,6 +175,7 @@ void Menu::RenderSettingsTab() {
     }
 
     if (ImGui::Button("UNHOOK DLL")) {
+        D3D11Hook::shuttingDown.store(true, std::memory_order_release);
         g_Running.store(false, std::memory_order_release);
     }
 
@@ -237,6 +238,7 @@ LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     }
 
     if (uMsg == WM_KEYUP && wParam == VK_DELETE) {
+        D3D11Hook::shuttingDown.store(true, std::memory_order_release);
         g_Running.store(false, std::memory_order_release);
         return TRUE;
     }

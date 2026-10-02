@@ -144,11 +144,17 @@ bool D3D11Hook::InitializeHooks() {
 LRESULT CALLBACK D3D11Hook::hkWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     HookScope scope;
 
+    // The window going away is the first reliable sign that the game is
+    // quitting; flag it so every detour stops touching game state while Unity
+    // tears its runtime down
+    if (uMsg == WM_CLOSE || uMsg == WM_DESTROY || uMsg == WM_ENDSESSION)
+        shuttingDown.store(true, std::memory_order_release);
+
     WNDPROC original = oWndProc.load(std::memory_order_acquire);
 
     // Until the old proc is published the subclass cannot safely chain, and
     // during unload ImGui is about to be destroyed.
-    if (!original || unloading.load(std::memory_order_acquire))
+    if (!original || unloading.load(std::memory_order_acquire) || shuttingDown.load(std::memory_order_acquire))
         return original ? CallWindowProc(original, hWnd, uMsg, wParam, lParam) : DefWindowProc(hWnd, uMsg, wParam, lParam);
 
     if (wndProcCallback) {
@@ -163,7 +169,7 @@ HRESULT STDMETHODCALLTYPE D3D11Hook::hkPresent(IDXGISwapChain* pSwapChain, UINT 
     // Count in first so Cleanup cannot remove the trampoline out from under an
     // in-flight call
     HookScope scope;
-    if (unloading.load(std::memory_order_acquire))
+    if (unloading.load(std::memory_order_acquire) || shuttingDown.load(std::memory_order_acquire))
         return oPresent(pSwapChain, SyncInterval, Flags);
 
     if (!initialized) {
@@ -232,7 +238,7 @@ HRESULT STDMETHODCALLTYPE D3D11Hook::hkPresent(IDXGISwapChain* pSwapChain, UINT 
 
 HRESULT STDMETHODCALLTYPE D3D11Hook::hkResizeBuffers(IDXGISwapChain* pSwapChain, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags) {
     HookScope scope;
-    if (unloading.load(std::memory_order_acquire))
+    if (unloading.load(std::memory_order_acquire) || shuttingDown.load(std::memory_order_acquire))
         return oResizeBuffers(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
 
     // ResizeBuffers can arrive before the first Present has created the ImGui
@@ -265,9 +271,13 @@ void D3D11Hook::Cleanup() {
     if (pResizeBuffers) MH_DisableHook(pResizeBuffers);
 
     // Let any detour already running on another thread observe the unload flag
-    // and leave before the ImGui context is destroyed.
-    while (inFlight.load(std::memory_order_acquire) != 0)
+    // and leave before the ImGui context is destroyed. Bounded so a detour
+    // wedged inside the game's own teardown cannot hang the process forever.
+    const std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+    while (inFlight.load(std::memory_order_acquire) != 0) {
+        if (std::chrono::steady_clock::now() >= deadline) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 
     ShutdownImGui();
     CleanupRenderTarget();

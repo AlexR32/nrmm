@@ -18,6 +18,7 @@ public:
     // Read by the initialization-wait thread while Present writes it
     static inline std::atomic_bool initialized{ false };
     static inline bool imguiInitialized = false;
+    static inline std::atomic_bool shuttingDown{ false };
 
     static inline IDXGISwapChain* swapChain = nullptr;
     static inline ID3D11Device* device = nullptr;
