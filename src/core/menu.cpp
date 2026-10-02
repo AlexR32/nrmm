@@ -4,7 +4,7 @@
 #include "menu.h"
 #include "overlay.h"
 #include "logger.h"
-#include "cursor.h"
+#include "input_block.h"
 #include "nr/garage.h"
 #include "nr/auction.h"
 #include "nr/hooks.h"
@@ -14,6 +14,54 @@
 #include "nr/fixes.h"
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+bool Menu::ShouldForwardToImGui(UINT msg) {
+    switch (msg) {
+    case WM_KEYDOWN: case WM_KEYUP:
+    case WM_SYSKEYDOWN: case WM_SYSKEYUP:
+    case WM_CHAR: case WM_SYSCHAR:
+    case WM_MOUSEMOVE: case WM_NCMOUSEMOVE: case WM_MOUSELEAVE:
+    case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_LBUTTONDBLCLK:
+    case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK:
+    case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MBUTTONDBLCLK:
+    case WM_XBUTTONDOWN: case WM_XBUTTONUP: case WM_XBUTTONDBLCLK:
+    case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL:
+    case WM_SETFOCUS: case WM_KILLFOCUS:
+    case WM_ACTIVATE: case WM_ACTIVATEAPP:
+    case WM_SETCURSOR:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool Menu::ShouldSwallow(UINT msg) {
+    switch (msg) {
+    case WM_KEYDOWN: case WM_KEYUP:
+    case WM_SYSKEYDOWN: case WM_SYSKEYUP:
+    case WM_CHAR: case WM_SYSCHAR:
+    case WM_MOUSEMOVE: case WM_MOUSELEAVE:
+    case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_LBUTTONDBLCLK:
+    case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK:
+    case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MBUTTONDBLCLK:
+    case WM_XBUTTONDOWN: case WM_XBUTTONUP: case WM_XBUTTONDBLCLK:
+    case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool Menu::IsKeyboardMessage(UINT msg) {
+    switch (msg) {
+    case WM_KEYDOWN: case WM_KEYUP:
+    case WM_SYSKEYDOWN: case WM_SYSKEYUP:
+    case WM_CHAR: case WM_SYSCHAR:
+        return true;
+    default:
+        return false;
+    }
+}
 
 void Menu::InitStyle() {
     ImGuiStyle& style = ImGui::GetStyle();
@@ -116,15 +164,18 @@ void Menu::RenderMainWindow() {
 void Menu::RenderSettingsTab() {
     if (!ImGui::BeginTabItem("Settings")) return;
 
-    if (ImGui::Button("UNHOOK DLL")) {
-        g_Running.store(false, std::memory_order_release);
+    bool blockKeyboard = InputBlock::KeyboardBlock();
+    if (ImGui::Checkbox("Block Keyboard", &blockKeyboard)) {
+        InputBlock::SetKeyboardBlock(blockKeyboard);
     }
-
-    ImGui::SameLine();
 
     bool showConsole = Logger::GetVisibility();
     if (ImGui::Checkbox("Show Console", &showConsole)) {
         Logger::SetVisibility(showConsole);
+    }
+
+    if (ImGui::Button("UNHOOK DLL")) {
+        g_Running.store(false, std::memory_order_release);
     }
 
     ImGui::EndTabItem();
@@ -149,8 +200,36 @@ void Menu::Render() {
 
 LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     if (uMsg == WM_KEYUP && wParam == VK_INSERT) {
-        visible = !visible;
-        if (visible) Cursor::ReleaseClip();
+        const bool show = !visible.load(std::memory_order_relaxed);
+        visible.store(show, std::memory_order_relaxed);
+
+        if (show) {
+            InputBlock::Suppress();
+
+            POINT target{};
+            bool haveTarget = false;
+            if (hasSavedCursor) {
+                target = savedCursor;
+                haveTarget = true;
+            } else if (hWnd && GetCursorPos(&target)) {
+                haveTarget = true;
+            }
+
+            if (haveTarget && hWnd) {
+                InputBlock::WarpCursor(target.x, target.y);
+
+                POINT client = target;
+                if (ScreenToClient(hWnd, &client)) {
+                    std::lock_guard<std::mutex> lock(inputMutex);
+                    if (inputQueue.size() >= kMaxQueuedInput) inputQueue.pop_front();
+                    inputQueue.push_back({hWnd, WM_MOUSEMOVE, 0, MAKELPARAM(client.x, client.y)});
+                }
+            }
+        } else {
+            if (hWnd && GetCursorPos(&savedCursor)) hasSavedCursor = true;
+            InputBlock::Release();
+        }
+
         return TRUE;
     }
 
@@ -159,37 +238,45 @@ LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return TRUE;
     }
 
-    if (visible) {
-        if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
-            return TRUE;
+    if (!visible.load(std::memory_order_relaxed)) return FALSE;
 
-        switch (uMsg) {
-        case WM_KEYDOWN: case WM_KEYUP:
-        case WM_SYSKEYDOWN: case WM_SYSKEYUP:
-        case WM_CHAR: case WM_SYSCHAR:
-        case WM_MOUSEMOVE:
-        case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_LBUTTONDBLCLK:
-        case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK:
-        case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MBUTTONDBLCLK:
-        case WM_XBUTTONDOWN: case WM_XBUTTONUP: case WM_XBUTTONDBLCLK:
-        case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL:
-        case WM_INPUT:
-            return TRUE;
-        }
+    if (ShouldForwardToImGui(uMsg)) {
+        std::lock_guard<std::mutex> lock(inputMutex);
+        if (inputQueue.size() >= kMaxQueuedInput) inputQueue.pop_front();
+        inputQueue.push_back({hWnd, uMsg, wParam, lParam});
     }
 
-    return FALSE;
+    bool swallow = ShouldSwallow(uMsg);
+    if (swallow && IsKeyboardMessage(uMsg) && !InputBlock::KeyboardBlock()) swallow = false;
+
+    return swallow ? TRUE : FALSE;
+}
+
+void Menu::PumpInput() {
+    InputBlock::BindRenderThread();
+
+    std::deque<InputMessage> pending;
+    {
+        std::lock_guard<std::mutex> lock(inputMutex);
+        if (inputQueue.empty()) return;
+        pending.swap(inputQueue);
+    }
+
+    for (const InputMessage& message : pending) {
+        ImGui_ImplWin32_WndProcHandler(message.hWnd, message.msg, message.wParam, message.lParam);
+    }
 }
 
 void Menu::Initialize() {
     if (initialized) return;
     D3D11Hook::RegisterRenderCallback(Render);
     D3D11Hook::RegisterWndProcCallback(HandleInput);
+    D3D11Hook::RegisterNewFrameCallback(PumpInput);
 
     ImGui::GetIO().IniFilename = NULL;
     InitStyle();
 
-    Cursor::Install();
+    InputBlock::Install();
 
     initialized = true;
 }
@@ -197,6 +284,6 @@ void Menu::Initialize() {
 void Menu::Shutdown() {
     if (!initialized) return;
     Hooks::Remove();
-    Cursor::Uninstall();
+    InputBlock::Uninstall();
     initialized = false;
 }

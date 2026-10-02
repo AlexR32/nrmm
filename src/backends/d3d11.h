@@ -9,6 +9,7 @@ class D3D11Hook {
 public:
     using RenderCallback = std::function<void()>;
     using WndProcCallback = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
+    using NewFrameCallback = std::function<void()>;
 
     static bool Initialize();
     static void Cleanup();
@@ -23,6 +24,7 @@ public:
 
     static void RegisterRenderCallback(RenderCallback callback) { renderCallback = callback; }
     static void RegisterWndProcCallback(WndProcCallback callback) { wndProcCallback = callback; }
+    static void RegisterNewFrameCallback(NewFrameCallback callback) { newFrameCallback = callback; }
 private:
     static inline HWND hWnd = nullptr;
     static inline WNDPROC oWndProc = nullptr;
@@ -33,6 +35,7 @@ private:
 
     static inline RenderCallback renderCallback = nullptr;
     static inline WndProcCallback wndProcCallback = nullptr;
+    static inline NewFrameCallback newFrameCallback = nullptr;
 
     static inline std::mutex initMutex;
     static inline bool gameObjectsAcquired = false;

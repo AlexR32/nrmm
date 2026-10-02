@@ -60,7 +60,7 @@
     <ClInclude Include="src\backends\d3d11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\cursor.h">
+    <ClInclude Include="src\core\input_block.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\logger.h">
@@ -153,6 +153,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\backends\d3d11.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\input_block.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\logger.cpp">

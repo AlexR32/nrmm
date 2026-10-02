@@ -153,6 +153,9 @@ HRESULT STDMETHODCALLTYPE D3D11Hook::hkPresent(IDXGISwapChain* pSwapChain, UINT 
 
     context->OMSetRenderTargets(1, &renderTargetView, nullptr);
 
+    if (newFrameCallback)
+        newFrameCallback();
+
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
