@@ -63,6 +63,55 @@ bool Menu::IsKeyboardMessage(UINT msg) {
     }
 }
 
+std::string Menu::KeyName(int vk) {
+    switch (vk) {
+    case 0: return "NONE";
+    case VK_INSERT: return "INSERT";
+    case VK_DELETE: return "DELETE";
+    case VK_HOME: return "HOME";
+    case VK_END: return "END";
+    case VK_PRIOR: return "PAGE UP";
+    case VK_NEXT: return "PAGE DOWN";
+    case VK_ESCAPE: return "ESCAPE";
+    case VK_TAB: return "TAB";
+    case VK_SPACE: return "SPACE";
+    case VK_RETURN: return "ENTER";
+    case VK_BACK: return "BACKSPACE";
+    case VK_CAPITAL: return "CAPS LOCK";
+    case VK_LEFT: return "LEFT";
+    case VK_RIGHT: return "RIGHT";
+    case VK_UP: return "UP";
+    case VK_DOWN: return "DOWN";
+    case VK_SHIFT: case VK_LSHIFT: case VK_RSHIFT: return "SHIFT";
+    case VK_CONTROL: case VK_LCONTROL: case VK_RCONTROL: return "CTRL";
+    case VK_MENU: case VK_LMENU: case VK_RMENU: return "ALT";
+    default: break;
+    }
+
+    if (vk >= VK_F1 && vk <= VK_F24) return "F" + std::to_string(vk - VK_F1 + 1);
+    if ((vk >= '0' && vk <= '9') || (vk >= 'A' && vk <= 'Z')) return std::string(1, static_cast<char>(vk));
+
+    const UINT scan = MapVirtualKeyA(static_cast<UINT>(vk), MAPVK_VK_TO_VSC);
+    char buffer[64]{};
+    const LONG lparam = static_cast<LONG>(scan << 16);
+    if (GetKeyNameTextA(lparam, buffer, static_cast<int>(sizeof(buffer))) > 0) return buffer;
+
+    return "VK " + std::to_string(vk);
+}
+
+void Menu::RenderKeybind(const char* label, std::atomic_int& key, int target) {
+    const bool capturing = captureTarget.load(std::memory_order_relaxed) == target;
+    const std::string value = capturing ? "Press a key..." : KeyName(key.load(std::memory_order_relaxed));
+
+    ImGui::TextUnformatted(label);
+    ImGui::SameLine();
+    ImGui::PushID(label);
+    if (ImGui::Button(value.c_str())) {
+        captureTarget.store(capturing ? 0 : target, std::memory_order_relaxed);
+    }
+    ImGui::PopID();
+}
+
 void Menu::InitStyle() {
     ImGuiStyle& style = ImGui::GetStyle();
     ImVec4* colors = ImGui::GetStyle().Colors;
@@ -174,7 +223,12 @@ void Menu::RenderSettingsTab() {
         Logger::SetVisibility(showConsole);
     }
 
-    if (ImGui::Button("UNHOOK DLL")) {
+    ImGui::SeparatorText("Keybinds");
+    RenderKeybind("Menu Toggle", toggleKey, 1);
+    RenderKeybind("Unload DLL", unloadKey, 2);
+    ImGui::TextDisabled("Click a keybind, then press a key (ESC cancels)");
+
+    if (ImGui::Button("UNLOAD DLL")) {
         D3D11Hook::shuttingDown.store(true, std::memory_order_release);
         g_Running.store(false, std::memory_order_release);
     }
@@ -193,8 +247,6 @@ void Menu::Render() {
     ImVec2 topCenter = ImVec2({io.DisplaySize.x * 0.5f, 0.0f});
     Overlay::TextOutlinedCentered("NRMM | alexr32 @ discord.com", topCenter);
 
-    // The debug console is independent of the main menu, so draw it even when
-    // the menu itself is hidden.
     Logger::Render();
 
     if (!visible) return;
@@ -203,7 +255,17 @@ void Menu::Render() {
 }
 
 LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    if (uMsg == WM_KEYUP && wParam == VK_INSERT) {
+    const int capture = captureTarget.load(std::memory_order_relaxed);
+    if (capture != 0 && (uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP)) {
+        const int vk = static_cast<int>(wParam);
+        if (vk != VK_ESCAPE) {
+            (capture == 1 ? toggleKey : unloadKey).store(vk, std::memory_order_relaxed);
+        }
+        captureTarget.store(0, std::memory_order_relaxed);
+        return TRUE;
+    }
+
+    if ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == static_cast<WPARAM>(toggleKey.load(std::memory_order_relaxed))) {
         const bool show = !visible.load(std::memory_order_relaxed);
         visible.store(show, std::memory_order_relaxed);
 
@@ -237,14 +299,12 @@ LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return TRUE;
     }
 
-    if (uMsg == WM_KEYUP && wParam == VK_DELETE) {
+    if ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == static_cast<WPARAM>(unloadKey.load(std::memory_order_relaxed))) {
         D3D11Hook::shuttingDown.store(true, std::memory_order_release);
         g_Running.store(false, std::memory_order_release);
         return TRUE;
     }
 
-    // The debug console renders independently but only becomes interactive while
-    // the main menu is open, so a hidden cursor cannot move it during play.
     if (!visible.load(std::memory_order_relaxed)) return FALSE;
 
     if (uMsg == WM_INPUT) {

@@ -52,6 +52,8 @@ Controls and behaviour:
 | `INS`      | Toggle the menu   |
 | `DELETE`   | Unload the DLL    |
 
+Both keybinds are rebindable from the **Settings** tab: click the keybind button, then press the key you want (`ESC` cancels).
+
 ## Building
 
 ### Requirements

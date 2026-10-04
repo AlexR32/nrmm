@@ -21,6 +21,8 @@ private:
 
     static void RenderMainWindow();
     static void RenderSettingsTab();
+    static void RenderKeybind(const char* label, std::atomic_int& key, int target);
+    static std::string KeyName(int vk);
 
     static void Render();
     static void PumpInput();
@@ -36,4 +38,8 @@ private:
 
     static inline POINT savedCursor{};
     static inline bool hasSavedCursor = false;
+
+    static inline std::atomic_int toggleKey{VK_INSERT};
+    static inline std::atomic_int unloadKey{VK_DELETE};
+    static inline std::atomic_int captureTarget{0};
 };
