@@ -5,7 +5,7 @@
 class Menu {
 public:
     static inline std::atomic_bool initialized{false};
-    static inline std::atomic_bool visible{false};
+    static inline std::atomic_bool visible{true};
 
     static void Initialize();
     static void Shutdown();

@@ -225,14 +225,13 @@ void Menu::RenderSettingsTab() {
         Config::SetDebugConsole(showConsole);
     }
 
-    ImGui::SeparatorText("Keybinds");
-    RenderKeybind("Menu Toggle", Config::ToggleKey(), 1);
-    RenderKeybind("Unload DLL", Config::UnloadKey(), 2);
-
     if (ImGui::Button("UNLOAD DLL")) {
         D3D11Hook::shuttingDown.store(true, std::memory_order_release);
         g_Running.store(false, std::memory_order_release);
     }
+
+    RenderKeybind("Menu Toggle", Config::ToggleKey(), 1);
+    RenderKeybind("Unload DLL", Config::UnloadKey(), 2);
 
     ImGui::EndTabItem();
 }
@@ -359,6 +358,10 @@ void Menu::Initialize() {
 
     Config::Load();
     InputBlock::Install();
+
+    if (visible.load(std::memory_order_relaxed)) {
+        InputBlock::Suppress();
+    }
 
     initialized = true;
 }
