@@ -34,6 +34,11 @@ private:
     // thread. Each field is atomic so the widgets never race the writer
     struct Snapshot {
         std::atomic<int> raceCrewTypeIndex{-1};
+
+        // player_NightRep, surfaced like the current car stats so it can be
+        // edited directly and held. changeMoneyRep clamps it to 3.0, so this
+        // path writes the field itself instead
+        std::atomic<float> nightRep{0.0f};
     };
 
     static void ApplyRaceCrewType(int index);
@@ -56,7 +61,6 @@ private:
     static void ChangeMoneyRep(int money, float rep, int32_t meetSpotId, float nightRep, int debt, int betting, const std::string& message);
     static void AddMoney();
     static void AddMeetspotRep();
-    static void AddNightRep();
     static void AddDebt();
     static void RemoveDebt();
     static void AddBettingMoney();
@@ -79,12 +83,16 @@ private:
     //static std::atomic<float> loadedLastDaySkyLerp;
     static int seenDataVersion;
 
+    // Night reputation freeze, mirroring the current car stats: while held the
+    // menu value is rewritten each frame, otherwise the live value is tracked
+    static std::atomic_bool freezeNightRep;
+    static std::atomic<float> frozenNightRep;
+
     // Money / reputation edit fields. Owned by the render thread; read when an
     // action snapshots them and posts the work to the script thread
     static int moneyToAdd;
     static float repToAdd;
     static int meetSpotIndex;
-    static float nightRepToAdd;
     static int debtToAdd;
     static int bettingMoneyToAdd;
 

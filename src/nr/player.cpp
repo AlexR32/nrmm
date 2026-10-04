@@ -20,10 +20,12 @@ std::atomic<float> Player::loadedStrength{ 0.0f };
 //std::atomic<float> Player::loadedLastDaySkyLerp{ 0.0f };
 int Player::seenDataVersion = 0;
 
+std::atomic_bool Player::freezeNightRep{ false };
+std::atomic<float> Player::frozenNightRep{ 0.0f };
+
 int Player::moneyToAdd = 0;
 float Player::repToAdd = 0.0f;
 int Player::meetSpotIndex = 0;
-float Player::nightRepToAdd = 0.0f;
 int Player::debtToAdd = 0;
 int Player::bettingMoneyToAdd = 0;
 
@@ -253,18 +255,11 @@ void Player::AddMeetspotRep() {
     ChangeMoneyRep(0, repToAdd, id, 0.0f, 0, 0, "Added meetspot reputation");
 }
 
-void Player::AddNightRep() {
-    ChangeMoneyRep(0, 0.0f, 0, nightRepToAdd, 0, 0, "Added night reputation");
-}
-
 void Player::AddDebt() {
     ChangeMoneyRep(0, 0.0f, 0, 0.0f, debtToAdd, 0, "Added debt");
 }
 
 void Player::RemoveDebt() {
-    // Subtract the entered amount so we never overpay: passing exactly the
-    // remaining debt keeps changeMoneyRep from treating it as a full repayment
-    // and clearing the betting loan as a side effect
     ChangeMoneyRep(0, 0.0f, 0, 0.0f, -debtToAdd, 0, "Removed debt");
 }
 
@@ -281,8 +276,21 @@ void Player::RemoveBettingMoney() {
 void Player::RefreshSnapshot() {
     Il2Cpp::ThreadAttach();
 
+    Il2CppObject* god = Shared::God();
     if (Enums::Ready()) {
-        snapshot.raceCrewTypeIndex.store(Enums::SyncIndex(Enums::Id::RaceCrews, Shared::God(), "player_raceCrew"), std::memory_order_relaxed);
+        snapshot.raceCrewTypeIndex.store(Enums::SyncIndex(Enums::Id::RaceCrews, god, "player_raceCrew"), std::memory_order_relaxed);
+    }
+
+    // Night reputation
+    float nightRep = 0.0f;
+    if (god && Il2Cpp::GetInstanceFieldValue(god, "player_NightRep", nightRep)) {
+        if (freezeNightRep.load(std::memory_order_relaxed)) {
+            nightRep = frozenNightRep.load(std::memory_order_relaxed);
+            Il2Cpp::SetInstanceFieldValue(god, "player_NightRep", nightRep);
+        } else {
+            frozenNightRep.store(nightRep, std::memory_order_relaxed);
+        }
+        snapshot.nightRep.store(nightRep, std::memory_order_relaxed);
     }
 }
 
@@ -348,42 +356,58 @@ void Player::RenderTab() {
 
     ImGui::SeparatorText("Money / Reputation");
 
+    if (ImGui::Button("Add##money")) AddMoney();
+    ImGui::SameLine();
     ImGui::SetNextItemWidth(120.0f);
     ImGui::InputInt("Money", &moneyToAdd);
+
+    if (ImGui::Button("Add##meetspotRep")) AddMeetspotRep();
+
     ImGui::SameLine();
-    if (ImGui::Button("Add Money")) AddMoney();
 
     if (!Enums::Ready() || Enums::MeetSpots().empty()) {
         ImGui::TextUnformatted("Meet spots unavailable.");
     } else {
         const std::vector<Il2Cpp::EnumMember>& meetSpots = Enums::MeetSpots();
         if (meetSpotIndex < 0 || meetSpotIndex >= static_cast<int>(meetSpots.size())) meetSpotIndex = 0;
-        Shared::RenderEnumCombo("Meetspot rep", meetSpots, meetSpotIndex, [](int index) { meetSpotIndex = index; });
+        Shared::RenderEnumCombo("##meetspotRep", meetSpots, meetSpotIndex, [](int index) { meetSpotIndex = index; });
     }
 
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputFloat("Reputation", &repToAdd, 1.0f, 100.0f, "%.1f");
     ImGui::SameLine();
-    if (ImGui::Button("Add Rep")) AddMeetspotRep();
-
     ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputFloat("Night reputation", &nightRepToAdd, 1.0f, 100.0f, "%.1f");
-    ImGui::SameLine();
-    if (ImGui::Button("Add Night Rep")) AddNightRep();
+    ImGui::InputFloat("Meetspot reputation", &repToAdd, 1.0f, 100.0f, "%.1f");
 
+    bool freezeNightRepOn = freezeNightRep.load(std::memory_order_relaxed);
+    if (ImGui::Checkbox("##freezeNightRep", &freezeNightRepOn)) freezeNightRep.store(freezeNightRepOn, std::memory_order_relaxed);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Freeze value");
+    ImGui::SameLine();
+
+    float nightRep = freezeNightRepOn ? frozenNightRep.load(std::memory_order_relaxed) : snapshot.nightRep.load(std::memory_order_relaxed);
+    ImGui::SetNextItemWidth(120.0f);
+    if (ImGui::InputFloat("Night reputation", &nightRep, 1.0f, 10.0f, "%.1f")) {
+        if (nightRep > 3.0f) nightRep = 3.0f;
+        if (nightRep < 0.0f) nightRep = 0.0f;
+        frozenNightRep.store(nightRep, std::memory_order_relaxed);
+        const float value = nightRep;
+        MainThread::Post([value]() {
+            Il2CppObject* god = Shared::God();
+            if (god) Il2Cpp::SetInstanceFieldValue(god, "player_NightRep", value);
+        });
+    }
+
+    if (ImGui::Button("Add##debt")) AddDebt();
+    ImGui::SameLine();
+    if (ImGui::Button("Remove##debt")) RemoveDebt();
+    ImGui::SameLine();
     ImGui::SetNextItemWidth(120.0f);
     ImGui::InputInt("Debt", &debtToAdd);
-    ImGui::SameLine();
-    if (ImGui::Button("Add Debt")) AddDebt();
-    ImGui::SameLine();
-    if (ImGui::Button("Remove Debt")) RemoveDebt();
 
+    if (ImGui::Button("Add##betting")) AddBettingMoney();
+    ImGui::SameLine();
+    if (ImGui::Button("Remove##betting")) RemoveBettingMoney();
+    ImGui::SameLine();
     ImGui::SetNextItemWidth(120.0f);
     ImGui::InputInt("Betting money", &bettingMoneyToAdd);
-    ImGui::SameLine();
-    if (ImGui::Button("Add Betting")) AddBettingMoney();
-    ImGui::SameLine();
-    if (ImGui::Button("Remove Betting")) RemoveBettingMoney();
 
     ImGui::EndTabItem();
 }
