@@ -104,13 +104,14 @@ void Menu::RenderKeybind(const char* label, int key, int target) {
     const bool capturing = captureTarget.load(std::memory_order_relaxed) == target;
     const std::string value = capturing ? "Press a key..." : KeyName(key);
 
-    ImGui::TextUnformatted(label);
-    ImGui::SameLine();
     ImGui::PushID(label);
     if (ImGui::Button(value.c_str())) {
         captureTarget.store(capturing ? 0 : target, std::memory_order_relaxed);
     }
+    ImGui::SetItemTooltip(capturing ? "Press a key (ESC cancels)" : "Click, then press a key to rebind");
     ImGui::PopID();
+    ImGui::SameLine();
+    ImGui::TextUnformatted(label);
 }
 
 void Menu::InitStyle() {
@@ -227,7 +228,6 @@ void Menu::RenderSettingsTab() {
     ImGui::SeparatorText("Keybinds");
     RenderKeybind("Menu Toggle", Config::ToggleKey(), 1);
     RenderKeybind("Unload DLL", Config::UnloadKey(), 2);
-    ImGui::TextDisabled("Click a keybind, then press a key (ESC cancels)");
 
     if (ImGui::Button("UNLOAD DLL")) {
         D3D11Hook::shuttingDown.store(true, std::memory_order_release);
