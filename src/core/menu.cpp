@@ -5,6 +5,7 @@
 #include "overlay.h"
 #include "logger.h"
 #include "input_block.h"
+#include "config.h"
 #include "nr/garage.h"
 #include "nr/auction.h"
 #include "nr/hooks.h"
@@ -99,9 +100,9 @@ std::string Menu::KeyName(int vk) {
     return "VK " + std::to_string(vk);
 }
 
-void Menu::RenderKeybind(const char* label, std::atomic_int& key, int target) {
+void Menu::RenderKeybind(const char* label, int key, int target) {
     const bool capturing = captureTarget.load(std::memory_order_relaxed) == target;
-    const std::string value = capturing ? "Press a key..." : KeyName(key.load(std::memory_order_relaxed));
+    const std::string value = capturing ? "Press a key..." : KeyName(key);
 
     ImGui::TextUnformatted(label);
     ImGui::SameLine();
@@ -213,19 +214,19 @@ void Menu::RenderMainWindow() {
 void Menu::RenderSettingsTab() {
     if (!ImGui::BeginTabItem("Settings")) return;
 
-    bool blockKeyboard = InputBlock::KeyboardBlock();
+    bool blockKeyboard = Config::BlockKeyboard();
     if (ImGui::Checkbox("Block Keyboard", &blockKeyboard)) {
-        InputBlock::SetKeyboardBlock(blockKeyboard);
+        Config::SetBlockKeyboard(blockKeyboard);
     }
 
-    bool showConsole = Logger::GetVisibility();
+    bool showConsole = Config::DebugConsole();
     if (ImGui::Checkbox("Debug Console", &showConsole)) {
-        Logger::SetVisibility(showConsole);
+        Config::SetDebugConsole(showConsole);
     }
 
     ImGui::SeparatorText("Keybinds");
-    RenderKeybind("Menu Toggle", toggleKey, 1);
-    RenderKeybind("Unload DLL", unloadKey, 2);
+    RenderKeybind("Menu Toggle", Config::ToggleKey(), 1);
+    RenderKeybind("Unload DLL", Config::UnloadKey(), 2);
     ImGui::TextDisabled("Click a keybind, then press a key (ESC cancels)");
 
     if (ImGui::Button("UNLOAD DLL")) {
@@ -259,13 +260,14 @@ LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     if (capture != 0 && (uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP)) {
         const int vk = static_cast<int>(wParam);
         if (vk != VK_ESCAPE) {
-            (capture == 1 ? toggleKey : unloadKey).store(vk, std::memory_order_relaxed);
+            if (capture == 1) Config::SetToggleKey(vk);
+            else Config::SetUnloadKey(vk);
         }
         captureTarget.store(0, std::memory_order_relaxed);
         return TRUE;
     }
 
-    if ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == static_cast<WPARAM>(toggleKey.load(std::memory_order_relaxed))) {
+    if ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == static_cast<WPARAM>(Config::ToggleKey())) {
         const bool show = !visible.load(std::memory_order_relaxed);
         visible.store(show, std::memory_order_relaxed);
 
@@ -299,7 +301,7 @@ LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return TRUE;
     }
 
-    if ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == static_cast<WPARAM>(unloadKey.load(std::memory_order_relaxed))) {
+    if ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == static_cast<WPARAM>(Config::UnloadKey())) {
         D3D11Hook::shuttingDown.store(true, std::memory_order_release);
         g_Running.store(false, std::memory_order_release);
         return TRUE;
@@ -355,6 +357,7 @@ void Menu::Initialize() {
     ImGui::GetIO().IniFilename = NULL;
     InitStyle();
 
+    Config::Load();
     InputBlock::Install();
 
     initialized = true;
