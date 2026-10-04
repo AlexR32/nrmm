@@ -47,7 +47,20 @@ private:
 
     static void EndNight();
     static void UnlockAllParts();
-    //static void AddMoneyRep();
+
+    // Money / reputation. Each category drives the game's own
+    // GodConstant.changeMoneyRep, which clamps the value and persists it through
+    // ES3. The arguments a category does not own are zeroed so the categories
+    // stay independent (meetspot rep is addressed by meetSpotId; id 0 would
+    // instead target crew rep, so meetspot rep always passes a real spot)
+    static void ChangeMoneyRep(int money, float rep, int32_t meetSpotId, float nightRep, int debt, int betting, const std::string& message);
+    static void AddMoney();
+    static void AddMeetspotRep();
+    static void AddNightRep();
+    static void AddDebt();
+    static void RemoveDebt();
+    static void AddBettingMoney();
+    static void RemoveBettingMoney();
 
     static Shared::Status status;
     static Snapshot snapshot;
@@ -66,12 +79,14 @@ private:
     //static std::atomic<float> loadedLastDaySkyLerp;
     static int seenDataVersion;
 
-    //static int moneyToAdd;
-    //static float repToAdd;
-    //static int meetSpotIndex;
-    //static float nightRepToAdd;
-    //static int debtToAdd;
-    //static int bettingMoneyToAdd;
+    // Money / reputation edit fields. Owned by the render thread; read when an
+    // action snapshots them and posts the work to the script thread
+    static int moneyToAdd;
+    static float repToAdd;
+    static int meetSpotIndex;
+    static float nightRepToAdd;
+    static int debtToAdd;
+    static int bettingMoneyToAdd;
 
     // Game constants
     static constexpr int kUnlockGameRep = 34275;

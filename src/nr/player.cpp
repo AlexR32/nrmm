@@ -20,12 +20,12 @@ std::atomic<float> Player::loadedStrength{ 0.0f };
 //std::atomic<float> Player::loadedLastDaySkyLerp{ 0.0f };
 int Player::seenDataVersion = 0;
 
-/*int Player::moneyToAdd = 0;
+int Player::moneyToAdd = 0;
 float Player::repToAdd = 0.0f;
 int Player::meetSpotIndex = 0;
 float Player::nightRepToAdd = 0.0f;
 int Player::debtToAdd = 0;
-int Player::bettingMoneyToAdd = 0;*/
+int Player::bettingMoneyToAdd = 0;
 
 // Apply actions
 
@@ -203,45 +203,78 @@ void Player::UnlockAllParts() {
     });
 }
 
-// Todo: rethink how we implement it
-/*void Player::AddMoneyRep() {
-    const int32_t money = moneyToAdd;
-    const float rep = repToAdd;
-    const float nightRep = nightRepToAdd;
-    const int32_t debt = debtToAdd;
-    const int32_t betting = bettingMoneyToAdd;
-    const int spot = meetSpotIndex;
-
-    MainThread::Post([money, rep, nightRep, debt, betting, spot]() {
+// Money / reputation. changeMoneyRep(int moneyToAdd, float repToAdd,
+// MeetSpots_All meetSpotRep, float nightrepToAdd, int debtToAdd,
+// int bettingMoneyToAdd) reloads money, debt and betting loan from ES3, clamps
+// each value and saves it back, so every category can drive it on its own by
+// zeroing the arguments it does not own
+void Player::ChangeMoneyRep(int money, float rep, int32_t meetSpotId, float nightRep, int debt, int betting, const std::string& message) {
+    MainThread::Post([=]() {
         Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
         if (!godClass) { status.Set("GodConstant not found"); return; }
 
         const MethodInfo* method = Il2Cpp::GetMethod(godClass, "changeMoneyRep", 6);
         if (!method) { status.Set("changeMoneyRep not found"); return; }
 
-        if (meetSpots.empty() || spot < 0 || spot >= static_cast<int>(meetSpots.size())) {
-            status.Set("Meet spot not loaded");
-            return;
-        }
-
         int32_t moneyArg = money;
         float repArg = rep;
+        int32_t meetSpotArg = meetSpotId;
         float nightRepArg = nightRep;
         int32_t debtArg = debt;
         int32_t bettingArg = betting;
         void* args[6] = {
             &moneyArg,
             &repArg,
-            meetSpots[spot].raw.data(),
+            &meetSpotArg,
             &nightRepArg,
             &debtArg,
             &bettingArg,
         };
         Il2Cpp::Invoke(method, Shared::God(), args);
 
-        status.Set("Added money / reputation");
+        status.Set(message);
     });
-}*/
+}
+
+void Player::AddMoney() {
+    ChangeMoneyRep(moneyToAdd, 0.0f, 0, 0.0f, 0, 0, "Added money");
+}
+
+void Player::AddMeetspotRep() {
+    const std::vector<Il2Cpp::EnumMember>& meetSpots = Enums::MeetSpots();
+    if (meetSpotIndex < 0 || meetSpotIndex >= static_cast<int>(meetSpots.size())) {
+        status.Set("Meet spot not loaded");
+        return;
+    }
+
+    int32_t id = 0;
+    memcpy(&id, meetSpots[meetSpotIndex].raw.data(), sizeof(id));
+
+    ChangeMoneyRep(0, repToAdd, id, 0.0f, 0, 0, "Added meetspot reputation");
+}
+
+void Player::AddNightRep() {
+    ChangeMoneyRep(0, 0.0f, 0, nightRepToAdd, 0, 0, "Added night reputation");
+}
+
+void Player::AddDebt() {
+    ChangeMoneyRep(0, 0.0f, 0, 0.0f, debtToAdd, 0, "Added debt");
+}
+
+void Player::RemoveDebt() {
+    // Subtract the entered amount so we never overpay: passing exactly the
+    // remaining debt keeps changeMoneyRep from treating it as a full repayment
+    // and clearing the betting loan as a side effect
+    ChangeMoneyRep(0, 0.0f, 0, 0.0f, -debtToAdd, 0, "Removed debt");
+}
+
+void Player::AddBettingMoney() {
+    ChangeMoneyRep(0, 0.0f, 0, 0.0f, 0, bettingMoneyToAdd, "Added betting money");
+}
+
+void Player::RemoveBettingMoney() {
+    ChangeMoneyRep(0, 0.0f, 0, 0.0f, 0, -bettingMoneyToAdd, "Removed betting money");
+}
 
 // Snapshot / tab
 
@@ -313,30 +346,44 @@ void Player::RenderTab() {
         SelectOwnerMeetspot(ownerMeetSpotIndex);
     }
 
-    /*ImGui::SeparatorText("Money / Reputation");
+    ImGui::SeparatorText("Money / Reputation");
 
     ImGui::SetNextItemWidth(120.0f);
     ImGui::InputInt("Money", &moneyToAdd);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputFloat("Reputation", &repToAdd, 1.0f, 100.0f, "%.1f");
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputFloat("Night reputation", &nightRepToAdd, 1.0f, 100.0f, "%.1f");
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputInt("Debt", &debtToAdd);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputInt("Betting money", &bettingMoneyToAdd);
+    ImGui::SameLine();
+    if (ImGui::Button("Add Money")) AddMoney();
 
-    EnsureMeetSpots();
-    if (!meetSpotsLoaded.load(std::memory_order_acquire) || meetSpots.empty()) {
+    if (!Enums::Ready() || Enums::MeetSpots().empty()) {
         ImGui::TextUnformatted("Meet spots unavailable.");
     } else {
-        if (meetSpotIndex < 0 || meetSpotIndex >= (int)meetSpots.size()) meetSpotIndex = 0;
-        RenderEnumCombo("Meet spot", meetSpots, meetSpotIndex, [](int index) { meetSpotIndex = index; });
+        const std::vector<Il2Cpp::EnumMember>& meetSpots = Enums::MeetSpots();
+        if (meetSpotIndex < 0 || meetSpotIndex >= static_cast<int>(meetSpots.size())) meetSpotIndex = 0;
+        Shared::RenderEnumCombo("Meetspot rep", meetSpots, meetSpotIndex, [](int index) { meetSpotIndex = index; });
     }
 
-    if (ImGui::Button("Add Money / Rep")) {
-        AddMoneyRep();
-    }*/
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::InputFloat("Reputation", &repToAdd, 1.0f, 100.0f, "%.1f");
+    ImGui::SameLine();
+    if (ImGui::Button("Add Rep")) AddMeetspotRep();
+
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::InputFloat("Night reputation", &nightRepToAdd, 1.0f, 100.0f, "%.1f");
+    ImGui::SameLine();
+    if (ImGui::Button("Add Night Rep")) AddNightRep();
+
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::InputInt("Debt", &debtToAdd);
+    ImGui::SameLine();
+    if (ImGui::Button("Add Debt")) AddDebt();
+    ImGui::SameLine();
+    if (ImGui::Button("Remove Debt")) RemoveDebt();
+
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::InputInt("Betting money", &bettingMoneyToAdd);
+    ImGui::SameLine();
+    if (ImGui::Button("Add Betting")) AddBettingMoney();
+    ImGui::SameLine();
+    if (ImGui::Button("Remove Betting")) RemoveBettingMoney();
 
     ImGui::EndTabItem();
 }
