@@ -122,8 +122,15 @@ public:
     static Il2CppObject* TC();           // TrafficCoordinator.instance_
     static Il2CppObject* PlayerCar();    // GodConstant.playerCar
     static Il2CppObject* CarData();      // playerCar.carData
-    static Il2CppObject* CarEngine();    // carData.carEngine
-    static Il2CppObject* CarLocal();     // playerCar.carLocal
+    static Il2CppObject* CarEngine();     // carData.carEngine
+    static Il2CppObject* CarLocal();      // playerCar.carLocal
+
+    // Depth-first search for the first descendant transform whose GameObject
+    // name starts with prefix, checking the direct children before descending
+    static Il2CppObject* FindDescendantByNamePrefix(Il2CppObject* transform, const char* prefix);
+
+    // transform.parent, or null when the transform is a root
+    static Il2CppObject* GetTransformParent(Il2CppObject* transform);
 
     // Enum helpers
     // Writes an enum literal (raw bytes from Il2Cpp::GetEnumMembers) into an instance field

@@ -744,3 +744,8 @@ bool Il2Cpp::UnboxBool(Il2CppObject* boxed, bool fallback) {
     if (!boxed || !il2cpp_object_unbox) return fallback;
     return *reinterpret_cast<bool*>(il2cpp_object_unbox(boxed)) != 0;
 }
+
+void* Il2Cpp::UnboxRaw(Il2CppObject* boxed) {
+    if (!boxed || !il2cpp_object_unbox) return nullptr;
+    return il2cpp_object_unbox(boxed);
+}

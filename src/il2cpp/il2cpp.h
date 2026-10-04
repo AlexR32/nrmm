@@ -180,6 +180,10 @@ public:
     // an int32 would also pick up the padding after the byte
     static bool UnboxBool(Il2CppObject* boxed, bool fallback = false);
 
+    // Raw payload of a boxed value type, for structs such as Vector3 and
+    // Quaternion. Null when the object is null or the export is missing
+    static void* UnboxRaw(Il2CppObject* boxed);
+
 private:
     static HMODULE dll;
     static Il2CppDomain* pDomain;

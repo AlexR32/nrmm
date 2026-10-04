@@ -224,6 +224,48 @@ Il2CppObject* Shared::CarLocal() {
     return Il2Cpp::GetInstanceFieldObject(car, "carLocal");
 }
 
+Il2CppObject* Shared::GetTransformParent(Il2CppObject* transform) {
+    if (!transform) return nullptr;
+
+    Il2CppImage* coreModule = Il2Cpp::GetImage("UnityEngine.CoreModule");
+    Il2CppClass* transformClass = Il2Cpp::FindClass("UnityEngine.Transform", coreModule);
+    const MethodInfo* getParent = transformClass ? Il2Cpp::GetMethod(transformClass, "get_parent", 0) : nullptr;
+    return getParent ? Il2Cpp::Invoke(getParent, transform, nullptr) : nullptr;
+}
+
+Il2CppObject* Shared::FindDescendantByNamePrefix(Il2CppObject* transform, const char* prefix) {
+    if (!transform || !prefix) return nullptr;
+
+    Il2CppImage* coreModule = Il2Cpp::GetImage("UnityEngine.CoreModule");
+    Il2CppClass* transformClass = Il2Cpp::FindClass("UnityEngine.Transform", coreModule);
+    Il2CppClass* objectClass = Il2Cpp::FindClass("UnityEngine.Object", coreModule);
+    const MethodInfo* getChildCount = transformClass ? Il2Cpp::GetMethod(transformClass, "get_childCount", 0) : nullptr;
+    const MethodInfo* getChild = transformClass ? Il2Cpp::GetMethod(transformClass, "GetChild", 1) : nullptr;
+    const MethodInfo* getName = objectClass ? Il2Cpp::GetMethod(objectClass, "get_name", 0) : nullptr;
+    if (!getChildCount || !getChild || !getName) return nullptr;
+
+    std::vector<Il2CppObject*> children;
+    const int count = Il2Cpp::UnboxInt32(Il2Cpp::Invoke(getChildCount, transform, nullptr));
+    children.reserve(count > 0 ? static_cast<size_t>(count) : 0);
+    for (int i = 0; i < count; ++i) {
+        int index = i;
+        void* args[1] = {&index};
+        if (Il2CppObject* child = Il2Cpp::Invoke(getChild, transform, args)) children.push_back(child);
+    }
+
+    for (Il2CppObject* child : children) {
+        Il2CppObject* nameObject = Il2Cpp::Invoke(getName, child, nullptr);
+        const std::string name = nameObject ? Il2Cpp::StringToUtf8(reinterpret_cast<Il2CppString*>(nameObject)) : "";
+        if (name.rfind(prefix, 0) == 0) return child;
+    }
+
+    for (Il2CppObject* child : children) {
+        if (Il2CppObject* found = FindDescendantByNamePrefix(child, prefix)) return found;
+    }
+
+    return nullptr;
+}
+
 bool Shared::SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member) {
     if (!instance) return false;
     return Il2Cpp::SetInstanceFieldObject(instance, fieldName, const_cast<uint8_t*>(member.raw.data()));
