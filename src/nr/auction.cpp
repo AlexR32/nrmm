@@ -13,7 +13,7 @@ Auction::Snapshot Auction::snapshot;
 // the game rebuild the listing
 void Auction::RefreshAuction() {
     MainThread::Post([]() {
-        Il2CppObject* carAuction = CarAuction();
+        Il2CppObject* carAuction = Shared::CarAuction();
         if (!carAuction) {
             status.Set("Enter the auction first");
             return;
@@ -25,9 +25,9 @@ void Auction::RefreshAuction() {
 
         // Delete instantiated auction papers only
         Il2CppObject* papers = Il2Cpp::GetInstanceFieldObject(carAuction, "all_carAuctionPapers");
-        const int paperCount = ListCount(papers);
+        const int paperCount = Shared::ListCount(papers);
         for (int i = 0; i < paperCount; ++i) {
-            Il2CppObject* paper = ListGet(papers, i);
+            Il2CppObject* paper = Shared::ListGet(papers, i);
             if (!paper) continue;
 
             Il2CppObject* paperGameObject = Il2Cpp::GetGameObject(paper);
@@ -37,9 +37,9 @@ void Auction::RefreshAuction() {
         }
 
         Il2CppObject* cars = Il2Cpp::GetInstanceFieldObject(carAuction, "carAuction_cars");
-        const int carCount = ListCount(cars);
+        const int carCount = Shared::ListCount(cars);
         for (int i = 0; i < carCount; ++i) {
-            Il2CppObject* car = ListGet(cars, i);
+            Il2CppObject* car = Shared::ListGet(cars, i);
             if (!car) continue;
 
             Il2CppObject* carGameObject = Il2Cpp::GetGameObject(car);
@@ -47,9 +47,9 @@ void Auction::RefreshAuction() {
         }
 
         // Clear old auction data
-        ListClear(papers);
-        ListClear(cars);
-        ListClear(Il2Cpp::GetInstanceFieldObject(carAuction, "carsSaveList"));
+        Shared::ListClear(papers);
+        Shared::ListClear(cars);
+        Shared::ListClear(Il2Cpp::GetInstanceFieldObject(carAuction, "carsSaveList"));
 
         // Bypass loading saved cars and load new ones
         int32_t lastRefresh = 0;
@@ -68,7 +68,7 @@ void Auction::RefreshAuction() {
 
 void Auction::UnlockAllAuctionCars() {
     MainThread::Post([]() {
-        Il2CppObject* carAuction = CarAuction();
+        Il2CppObject* carAuction = Shared::CarAuction();
         if (!carAuction) {
             status.Set("Enter the auction first");
             return;
@@ -109,7 +109,7 @@ void Auction::UnlockAllAuctionCars() {
 void Auction::RefreshSnapshot() {
     Il2Cpp::ThreadAttach();
 
-    Il2CppObject* carAuction = CarAuction();
+    Il2CppObject* carAuction = Shared::CarAuction();
     snapshot.available.store(carAuction != nullptr, std::memory_order_relaxed);
     if (!carAuction) {
         snapshot.active.store(false, std::memory_order_relaxed);
