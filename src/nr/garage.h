@@ -19,7 +19,7 @@ public:
     static void PumpSpawn();
 
 private:
-    struct ChassisOption {
+    struct ModelOption {
         std::string name;
         std::vector<uint8_t> raw;
     };
@@ -48,8 +48,8 @@ private:
     };
 
     struct SpawnContext {
-        std::string chassisName;
-        std::vector<uint8_t> chassisValue;
+        std::string modelName;
+        std::vector<uint8_t> modelValue;
         std::vector<uint8_t> setupValue;
         SpawnOverrides overrides;
 
@@ -74,8 +74,8 @@ private:
     static void StartSpawn();
     static void AddSelectedToGarage();
 
-    static void LoadChassisOptionsNow();
-    static void LoadChassisOptions(bool force = false);
+    static void LoadModelOptionsNow();
+    static void LoadModelOptions(bool force = false);
 
     static void RenderOverrides();
 
@@ -83,12 +83,12 @@ private:
     static Shared::Sequence spawn;
     static SpawnContext ctx;
 
-    static std::vector<ChassisOption> chassisOptions;
-    static std::mutex chassisMutex;
-    static int selectedChassis;
-    static std::atomic_bool chassisLoaded;
-    static std::atomic_bool chassisLoadAttempted;
-    static std::atomic_bool chassisLoadPending;
+    static std::vector<ModelOption> modelOptions;
+    static std::mutex modelMutex;
+    static int selectedModel;
+    static std::atomic_bool modelLoaded;
+    static std::atomic_bool modelLoadAttempted;
+    static std::atomic_bool modelLoadPending;
     static std::atomic_bool busy;
 
     static SpawnOverrides spawnOverrides;

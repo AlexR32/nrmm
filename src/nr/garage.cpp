@@ -10,12 +10,12 @@ Shared::Status Garage::status("Garage");
 Shared::Sequence Garage::spawn;
 Garage::SpawnContext Garage::ctx;
 
-std::vector<Garage::ChassisOption> Garage::chassisOptions;
-std::mutex Garage::chassisMutex;
-int Garage::selectedChassis = 0;
-std::atomic_bool Garage::chassisLoaded{ false };
-std::atomic_bool Garage::chassisLoadAttempted{ false };
-std::atomic_bool Garage::chassisLoadPending{ false };
+std::vector<Garage::ModelOption> Garage::modelOptions;
+std::mutex Garage::modelMutex;
+int Garage::selectedModel = 0;
+std::atomic_bool Garage::modelLoaded{ false };
+std::atomic_bool Garage::modelLoadAttempted{ false };
+std::atomic_bool Garage::modelLoadPending{ false };
 std::atomic_bool Garage::busy{ false };
 
 Garage::SpawnOverrides Garage::spawnOverrides;
@@ -91,9 +91,10 @@ void Garage::StartSpawn() {
         Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
         Il2CppClass* carLocalClass = Il2Cpp::FindClass("CarLocalCustom");
         Il2CppClass* chassisEnum = Il2Cpp::FindClass("car_carOrigin.ChassisType");
+        Il2CppClass* modelEnum = Il2Cpp::FindClass("car_carOrigin.ModelType");
         Il2CppClass* setupEnum = Il2Cpp::FindClass("CarParent.CarSetupType");
 
-        if (!parentClass || !godClass || !carLocalClass || !chassisEnum || !setupEnum) {
+        if (!parentClass || !godClass || !carLocalClass || !chassisEnum || !modelEnum || !setupEnum) {
             spawn.Fail("Required game classes were not found");
             return true;
         }
@@ -119,22 +120,36 @@ void Garage::StartSpawn() {
             return true;
         }
 
-        // var cars = new ChassisType[] { chassis };
-        Il2CppArray* cars = Il2Cpp::NewArray(chassisEnum, 1);
+        // The whole ChassisType enum is passed so any chassis is accepted, and
+        // the selected ModelType narrows the pool down to the requested car
+        std::vector<Il2Cpp::EnumMember> chassisMembers = Il2Cpp::GetEnumMembers(chassisEnum);
+
+        std::vector<const Il2Cpp::EnumMember*> chassisValues;
+        chassisValues.reserve(chassisMembers.size());
+        for (const Il2Cpp::EnumMember& member : chassisMembers) {
+            // Same as the model list: drop the placeholder values by name
+            if (member.name == "null_type" || member.name == "generic") continue;
+            chassisValues.push_back(&member);
+        }
+        if (chassisValues.empty()) { spawn.Fail("No chassis values found"); return true; }
+
+        Il2CppArray* cars = Il2Cpp::NewArray(chassisEnum, chassisValues.size());
         if (!cars) { spawn.Fail("Failed to allocate the chassis array"); return true; }
-        Il2Cpp::ArraySetRaw(cars, 0, ctx.chassisValue.data(), ctx.chassisValue.size());
+        for (size_t i = 0; i < chassisValues.size(); ++i) {
+            Il2Cpp::ArraySetRaw(cars, i, chassisValues[i]->raw.data(), chassisValues[i]->raw.size());
+        }
 
-        // var models = null; the game's own shop passes null here and the
-        // coroutine treats it as "no model filter", accepting a candidate on
-        // the rarity roll alone
-        Il2CppObject* nullObject = nullptr;
+        // var models = new ModelType[] { model };
+        Il2CppArray* models = Il2Cpp::NewArray(modelEnum, 1);
+        if (!models) { spawn.Fail("Failed to allocate the model array"); return true; }
+        Il2Cpp::ArraySetRaw(models, 0, ctx.modelValue.data(), ctx.modelValue.size());
 
-        // var r1 = parent.spawnShopCar(cars, null, 0, 0, true);
-        Il2Cpp::SetInstanceFieldObject(parent, "spawnShopCar_result", nullObject);
+        // var r1 = parent.spawnShopCar(cars, models, 0, 0, true);
+        Il2Cpp::SetInstanceFieldObject(parent, "spawnShopCar_result", nullptr);
         int32_t targetCounty = 0;
         int32_t minRarity = 0;
         bool onlyStock = ctx.overrides.applyToggle ? ctx.overrides.onlyStock : true;
-        void* spawnShopCarArgs[5] = {cars, nullObject, &targetCounty, &minRarity, &onlyStock};
+        void* spawnShopCarArgs[5] = {cars, models, &targetCounty, &minRarity, &onlyStock};
         Il2CppObject* enumerator = Il2Cpp::Invoke(spawnShopCar, parent, spawnShopCarArgs);
         if (!enumerator) { spawn.Fail("spawnShopCar returned null"); return true; }
 
@@ -153,11 +168,11 @@ void Garage::StartSpawn() {
         Il2CppObject* targetCar = Il2Cpp::GetInstanceFieldObject(ctx.parent, "spawnShopCar_result");
         if (!targetCar) return false;
 
-        // An unsupported or unloaded chassis can yield a car_overwrite whose
+        // An unsupported or unloaded model can yield a car_overwrite whose
         // carOrigin is null, which makes ShopCarSpawn dereference null. Reject
         // it here so the failure is reported instead of thrown inside the coroutine
         if (!Il2Cpp::GetInstanceFieldObject(targetCar, "carOrigin")) {
-            spawn.Fail("Spawned car has no origin (unsupported chassis)");
+            spawn.Fail("Spawned car has no origin (unsupported model)");
             return true;
         }
 
@@ -213,54 +228,57 @@ void Garage::StartSpawn() {
     spawn.Start(std::move(steps),
         [](bool ok, const std::string& message) {
             busy.store(false, std::memory_order_release);
-            status.Set(ok ? ("Added " + ctx.chassisName + " to the garage") : message);
+            status.Set(ok ? ("Added " + ctx.modelName + " to the garage") : message);
         },
         std::chrono::seconds(15));
 }
 
 void Garage::AddSelectedToGarage() {
-    if (!chassisLoaded.load()) return;
+    if (!modelLoaded.load()) return;
     if (busy.exchange(true)) return;
 
     // Copy what the spawn needs while we are still on the render thread, then
     // hand the state over; PumpSpawn advances it on the script thread
     SpawnContext run;
     {
-        std::lock_guard<std::mutex> lock(chassisMutex);
-        if (selectedChassis < 0 || selectedChassis >= static_cast<int>(chassisOptions.size())) {
+        std::lock_guard<std::mutex> lock(modelMutex);
+        if (selectedModel < 0 || selectedModel >= static_cast<int>(modelOptions.size())) {
             busy.store(false, std::memory_order_release);
             return;
         }
-        run.chassisName = chassisOptions[selectedChassis].name;
-        run.chassisValue = chassisOptions[selectedChassis].raw;
+        run.modelName = modelOptions[selectedModel].name;
+        run.modelValue = modelOptions[selectedModel].raw;
     }
     run.overrides = spawnOverrides;
 
     MainThread::Post([run]() {
         ctx = run;
-        status.Set("Spawning " + run.chassisName + "...");
+        status.Set("Spawning " + run.modelName + "...");
         StartSpawn();
     });
 }
 
 // Building the option list touches the runtime, so it is handed to the script
-// thread. The render thread only reads the finished list once chassisLoaded is set
-void Garage::LoadChassisOptionsNow() {
-    chassisLoadAttempted.store(true);
+// thread. The render thread only reads the finished list once modelLoaded is set
+void Garage::LoadModelOptionsNow() {
+    modelLoadAttempted.store(true);
 
-    Il2CppClass* chassisEnum = Il2Cpp::FindClass("car_carOrigin.ChassisType");
-    if (!chassisEnum) {
-        status.Set("ChassisType enum not found");
+    Il2CppClass* modelEnum = Il2Cpp::FindClass("car_carOrigin.ModelType");
+    if (!modelEnum) {
+        status.Set("ModelType enum not found");
         return;
     }
 
-    // The first two members are null_type and generic, not real chassis
-    std::vector<Il2Cpp::EnumMember> members = Il2Cpp::GetEnumMembers(chassisEnum);
+    // The placeholder entries (null_type, generic) are not real models
+    std::vector<Il2Cpp::EnumMember> members = Il2Cpp::GetEnumMembers(modelEnum);
 
-    std::vector<ChassisOption> options;
+    std::vector<ModelOption> options;
     if (members.size() > 2) options.reserve(members.size() - 2);
-    for (size_t i = 2; i < members.size(); ++i) {
-        options.push_back({members[i].name, std::move(members[i].raw)});
+    for (const Il2Cpp::EnumMember& member : members) {
+        // Skip the placeholder entries by name instead of by index: some enums
+        // only carry null_type, so dropping a fixed count would lose a real car
+        if (member.name == "null_type" || member.name == "generic") continue;
+        options.push_back({member.name, member.raw});
     }
 
     const size_t optionCount = options.size();
@@ -268,25 +286,25 @@ void Garage::LoadChassisOptionsNow() {
     // Swap the finished list in under the lock so the render thread never sees
     // a half-rebuilt vector
     {
-        std::lock_guard<std::mutex> lock(chassisMutex);
-        chassisOptions = std::move(options);
+        std::lock_guard<std::mutex> lock(modelMutex);
+        modelOptions = std::move(options);
     }
 
-    chassisLoaded.store(optionCount != 0);
+    modelLoaded.store(optionCount != 0);
     if (optionCount != 0) {
-        status.Set("Loaded " + std::to_string(optionCount) + " chassis types");
+        status.Set("Loaded " + std::to_string(optionCount) + " model types");
     } else {
-        status.Set("No chassis values found");
+        status.Set("No model values found");
     }
 }
 
-void Garage::LoadChassisOptions(bool force) {
-    if (!force && (chassisLoaded.load() || chassisLoadAttempted.load())) return;
-    if (chassisLoadPending.exchange(true)) return;
+void Garage::LoadModelOptions(bool force) {
+    if (!force && (modelLoaded.load() || modelLoadAttempted.load())) return;
+    if (modelLoadPending.exchange(true)) return;
 
     MainThread::Post([]() {
-        LoadChassisOptionsNow();
-        chassisLoadPending.store(false, std::memory_order_release);
+        LoadModelOptionsNow();
+        modelLoadPending.store(false, std::memory_order_release);
     });
 }
 
@@ -356,43 +374,43 @@ void Garage::RenderTab() {
 
     status.Render();
 
-    LoadChassisOptions();
+    LoadModelOptions();
 
-    if (!chassisLoaded.load()) {
-        ImGui::TextUnformatted("No chassis types available.");
+    if (!modelLoaded.load()) {
+        ImGui::TextUnformatted("No model types available.");
         ImGui::SameLine();
         if (ImGui::SmallButton("Refresh")) {
-            LoadChassisOptions(true);
+            LoadModelOptions(true);
         }
     } else {
         // Copy the list so the script thread can replace it without racing the widgets
-        std::vector<ChassisOption> options;
+        std::vector<ModelOption> options;
         {
-            std::lock_guard<std::mutex> lock(chassisMutex);
-            options = chassisOptions;
+            std::lock_guard<std::mutex> lock(modelMutex);
+            options = modelOptions;
         }
 
         if (options.empty()) {
-            ImGui::TextUnformatted("No chassis types available.");
+            ImGui::TextUnformatted("No model types available.");
             ImGui::SameLine();
             if (ImGui::SmallButton("Refresh")) {
-                LoadChassisOptions(true);
+                LoadModelOptions(true);
             }
             ImGui::EndTabItem();
             return;
         }
 
-        if (selectedChassis < 0 || selectedChassis >= static_cast<int>(options.size())) {
-            selectedChassis = 0;
+        if (selectedModel < 0 || selectedModel >= static_cast<int>(options.size())) {
+            selectedModel = 0;
         }
 
-        const char* preview = options[selectedChassis].name.c_str();
+        const char* preview = options[selectedModel].name.c_str();
         ImGui::SetNextItemWidth(160.0f);
         if (ImGui::BeginCombo("##carCombo", preview)) {
             for (int i = 0; i < static_cast<int>(options.size()); ++i) {
-                const bool selected = (i == selectedChassis);
+                const bool selected = (i == selectedModel);
                 if (ImGui::Selectable(options[i].name.c_str(), selected)) {
-                    selectedChassis = i;
+                    selectedModel = i;
                 }
                 if (selected) ImGui::SetItemDefaultFocus();
             }

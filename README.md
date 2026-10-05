@@ -30,7 +30,7 @@ The menu is opened with `INS` and has the following tabs
 - **Fixes**
   - Separate tab to show what game fixes this mod menu has
 - **Garage**
-  - Spawn a car from the full chassis list and save it to a house
+  - Spawn a car from the full model list and save it to a house
   - Spawn overrides: engine, fuel, mileage and dirt, gearbox, paint colour, and stock-only
 - **Auction**
   - Refresh the auction listing
