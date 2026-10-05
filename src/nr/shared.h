@@ -121,9 +121,11 @@ public:
     static Il2CppObject* God();          // GodConstant._instance
     static Il2CppObject* TC();           // TrafficCoordinator.instance_
     static Il2CppObject* PlayerCar();    // GodConstant.playerCar
-    static Il2CppObject* CarData();      // playerCar.carData
-    static Il2CppObject* CarEngine();     // carData.carEngine
-    static Il2CppObject* CarLocal();      // playerCar.carLocal
+    static Il2CppObject* CarData();      // GodConstant.playerCar.carData
+    static Il2CppObject* CarEngine();    // GodConstant.playerCar.carData.carEngine
+    static Il2CppObject* CarLocal();     // GodConstant.playerCar.carLocal
+    static Il2CppObject* HomeGarage();   // GodConstant.currenthomegarage
+    static Il2CppObject* CarAuction();   // GodConstant.currenthomegarage.carAuction
 
     // Depth-first search for the first descendant transform whose GameObject
     // name starts with prefix, checking the direct children before descending
@@ -132,10 +134,14 @@ public:
     // transform.parent, or null when the transform is a root
     static Il2CppObject* GetTransformParent(Il2CppObject* transform);
 
+    // List helpers
+    static int ListCount(Il2CppObject* list);
+    static Il2CppObject* ListGet(Il2CppObject* list, int index);
+    static void ListClear(Il2CppObject* list);
+
     // Enum helpers
     // Writes an enum literal (raw bytes from Il2Cpp::GetEnumMembers) into an instance field
     static bool SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member);
-
     static int FindEnumIndex(const std::vector<Il2Cpp::EnumMember>& options, const void* raw, size_t size);
     static void SyncEnumIndex(Il2CppObject* instance, const char* fieldName, const std::vector<Il2Cpp::EnumMember>& options, int& index);
 };

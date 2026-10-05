@@ -13,21 +13,14 @@
 #include <vector>
 
 // Current car tab: the drivetrain, induction and fuel type, the freeze toggles
-// and the oil/car-stats actions for the car the player is currently driving.
-// The widgets read a small snapshot that RefreshSnapshot() rebuilds on the
-// script thread from the GodConstant.Update hook, so the render thread never
-// touches managed objects for display
+// and the oil/car-stats actions for the car the player is currently driving
 
 class CurrentCar {
 public:
     static void RenderTab();
-
-    // Called from the GodConstant.Update hook, on the script thread
     static void RefreshSnapshot();
 
 private:
-    // Written by RefreshSnapshot() on the script thread, read by the render
-    // thread. Each field is atomic so the widgets never race the writer
     struct Snapshot {
         std::atomic_bool carLoaded{false};
 
@@ -55,10 +48,8 @@ private:
     static Shared::Status status;
     static Snapshot snapshot;
 
-    // Freeze toggles. RefreshSnapshot (script thread) holds the frozen values
-    // each frame; the render thread writes the targets from the input widgets.
-    // While a freeze is off its target tracks the live value, so enabling it
-    // captures whatever the car currently has
+    // Freeze toggles. While a freeze is off its target tracks the live value,
+    // so enabling it captures whatever the car currently has
     static std::atomic_bool freezeEngineHealth;
     static std::atomic_bool freezeFuel;
     static std::atomic_bool freezeWaterTemp;

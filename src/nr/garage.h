@@ -11,18 +11,11 @@
 
 // Garage tab: mirrors the reference managed flow - find the CarParent and
 // GodConstant instances, spawn a shop car, turn it into a working car and
-// finally save it to savefile.
-//
-// Unity drives coroutines from its player loop, so the sequence is advanced one
-// step per frame by PumpSpawn from the GodConstant.Update hook instead of
-// running on a worker thread.
+// finally save it to savefile
 
 class Garage {
 public:
     static void RenderTab();
-
-    // Advanced from the GodConstant.Update hook
-    // so the sequence runs on the game's script thread
     static void PumpSpawn();
 
 private:
@@ -90,7 +83,6 @@ private:
     static Shared::Sequence spawn;
     static SpawnContext ctx;
 
-    // Written on the script thread, copied under the mutex on the render thread
     static std::vector<ChassisOption> chassisOptions;
     static std::mutex chassisMutex;
     static int selectedChassis;

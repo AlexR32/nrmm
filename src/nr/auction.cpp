@@ -9,48 +9,6 @@
 Shared::Status Auction::status("Auction");
 Auction::Snapshot Auction::snapshot;
 
-Il2CppObject* Auction::HomeGarage() {
-    Il2CppObject* god = Shared::God();
-    if (!god) return nullptr;
-
-    return Il2Cpp::GetInstanceFieldObject(god, "currenthomegarage");
-}
-
-Il2CppObject* Auction::CarAuction() {
-    Il2CppObject* homegarage = HomeGarage();
-    if (!homegarage) return nullptr;
-
-    return Il2Cpp::GetInstanceFieldObject(homegarage, "carAuction");
-}
-
-int Auction::ListCount(Il2CppObject* list) {
-    if (!list) return 0;
-
-    const MethodInfo* method = Il2Cpp::GetMethod(Il2Cpp::ObjectClass(list), "get_Count", 0);
-    if (!method) return 0;
-
-    Il2CppObject* result = Il2Cpp::Invoke(method, list, nullptr);
-    return Il2Cpp::UnboxInt32(result);
-}
-
-Il2CppObject* Auction::ListGet(Il2CppObject* list, int index) {
-    if (!list) return nullptr;
-
-    const MethodInfo* method = Il2Cpp::GetMethod(Il2Cpp::ObjectClass(list), "get_Item", 1);
-    if (!method) return nullptr;
-
-    int32_t i = index;
-    void* args[1] = {&i};
-    return Il2Cpp::Invoke(method, list, args);
-}
-
-void Auction::ListClear(Il2CppObject* list) {
-    if (!list) return;
-
-    const MethodInfo* method = Il2Cpp::GetMethod(Il2Cpp::ObjectClass(list), "Clear", 0);
-    if (method) Il2Cpp::Invoke(method, list, nullptr);
-}
-
 // Destroy the instantiated papers and cars, clear the bookkeeping lists and let
 // the game rebuild the listing
 void Auction::RefreshAuction() {

@@ -13,16 +13,11 @@
 #include <vector>
 
 // Player tab: the player car wheel/induction/fuel type, ending the night, money
-// and reputation grants, the parts unlock and the traffic toggle. The widgets
-// read a small snapshot that RefreshSnapshot() rebuilds on the script thread
-// from the GodConstant.Update hook, so the render thread never touches managed
-// objects for display
+// and reputation grants, the parts unlock and the traffic toggle.
 
 class Player {
 public:
     static void RenderTab();
-
-    // Called from the GodConstant.Update hook, on the script thread
     static void RefreshSnapshot();
 
     // We need these in world tab

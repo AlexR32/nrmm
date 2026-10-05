@@ -224,6 +224,20 @@ Il2CppObject* Shared::CarLocal() {
     return Il2Cpp::GetInstanceFieldObject(car, "carLocal");
 }
 
+Il2CppObject* Shared::HomeGarage() {
+    Il2CppObject* god = God();
+    if (!god) return nullptr;
+
+    return Il2Cpp::GetInstanceFieldObject(god, "currenthomegarage");
+}
+
+Il2CppObject* Shared::CarAuction() {
+    Il2CppObject* homegarage = HomeGarage();
+    if (!homegarage) return nullptr;
+
+    return Il2Cpp::GetInstanceFieldObject(homegarage, "carAuction");
+}
+
 Il2CppObject* Shared::GetTransformParent(Il2CppObject* transform) {
     if (!transform) return nullptr;
 
@@ -264,6 +278,34 @@ Il2CppObject* Shared::FindDescendantByNamePrefix(Il2CppObject* transform, const 
     }
 
     return nullptr;
+}
+
+int Shared::ListCount(Il2CppObject* list) {
+    if (!list) return 0;
+
+    const MethodInfo* method = Il2Cpp::GetMethod(Il2Cpp::ObjectClass(list), "get_Count", 0);
+    if (!method) return 0;
+
+    Il2CppObject* result = Il2Cpp::Invoke(method, list, nullptr);
+    return Il2Cpp::UnboxInt32(result);
+}
+
+Il2CppObject* Shared::ListGet(Il2CppObject* list, int index) {
+    if (!list) return nullptr;
+
+    const MethodInfo* method = Il2Cpp::GetMethod(Il2Cpp::ObjectClass(list), "get_Item", 1);
+    if (!method) return nullptr;
+
+    int32_t i = index;
+    void* args[1] = {&i};
+    return Il2Cpp::Invoke(method, list, args);
+}
+
+void Shared::ListClear(Il2CppObject* list) {
+    if (!list) return;
+
+    const MethodInfo* method = Il2Cpp::GetMethod(Il2Cpp::ObjectClass(list), "Clear", 0);
+    if (method) Il2Cpp::Invoke(method, list, nullptr);
 }
 
 bool Shared::SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member) {

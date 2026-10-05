@@ -12,16 +12,11 @@
 #include <string>
 #include <vector>
 
-// World tab: traffic, meetspot attacks, truck fast travel and destination
-// travel. The meetspot/travel/destination lists are rebuilt on the script
-// thread, and the widget state is read from atomics or copies taken under a
-// mutex, so the render thread never touches managed objects for display
+// World tab: traffic, meetspot attacks, truck fast travel and destination travel.
 
 class World {
 public:
     static void RenderTab();
-
-    // Called from the GodConstant.Update hook, on the script thread
     static void RefreshSnapshot();
 
 private:

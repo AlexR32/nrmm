@@ -11,12 +11,7 @@
 
 class Hooks {
 public:
-    // Called from the mod's own worker loop, never from the render thread:
-    // installing here avoids doing il2cpp reflection and MinHook work inside
-    // the Present detour. GodConstant may not exist during the first frames, so
-    // it is retried until it does
     static void EnsureInstalled();
-
     static void Remove();
 
 private:
