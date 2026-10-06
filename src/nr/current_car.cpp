@@ -8,6 +8,8 @@
 
 Shared::Status CurrentCar::status("CurrentCar");
 CurrentCar::Snapshot CurrentCar::snapshot;
+CurrentCar::PlateValues CurrentCar::plateEdit;
+std::atomic_bool CurrentCar::plateDirty{false};
 
 std::atomic_bool CurrentCar::freezeEngineHealth{false};
 std::atomic_bool CurrentCar::freezeFuel{false};
@@ -78,21 +80,158 @@ void CurrentCar::ChangeOil() {
     });
 }
 
-// Car stats save
+void CurrentCar::CleanCar() {
+    MainThread::Post([]() {
+        Il2CppObject* carLocal = Shared::CarLocal();
+        Il2CppObject* carData = Shared::CarData();
+        if (!carLocal || !carData) { status.Set("Car not found"); return; }
 
-void CurrentCar::SaveCarStats() {
+        float carOdometerTarget = 0.0f;
+        Il2Cpp::GetInstanceFieldValue(carData, "carOdometerTarget", carOdometerTarget);
+
+        if (!Il2Cpp::SetInstanceFieldValue(carLocal, "car_dirtStartMilage", carOdometerTarget)) {
+            status.Set("car_dirtStartMilage field not found");
+            return;
+        }
+
+        Il2CppClass* carLocalClass = Il2Cpp::FindClass("CarLocalCustom");
+        const MethodInfo* updateDirt = carLocalClass ? Il2Cpp::GetMethod(carLocalClass, "update_carDirt", 0) : nullptr;
+        if (updateDirt) Il2Cpp::Invoke(updateDirt, carLocal, nullptr);
+
+        status.Set("Car cleaned");
+    });
+}
+
+// Number plate
+
+void CurrentCar::ApplyPlateToCar(Il2CppObject* carLocal, Il2CppObject* plateInfo) {
+    if (!carLocal || !plateInfo) return;
+
+    Il2Cpp::SetInstanceFieldObject(carLocal, "localPlateInfo", plateInfo);
+
+    Il2CppClass* plateClass = Il2Cpp::FindClass("car_numberPlate");
+    const MethodInfo* start = plateClass ? Il2Cpp::GetMethod(plateClass, "numberPlate_start", 3) : nullptr;
+    if (!start) { status.Set("numberPlate_start not found"); return; }
+
+    const char* plateFields[2] = {"plateFront", "plateRear"};
+    for (const char* fieldName : plateFields) {
+        Il2CppObject* plate = Il2Cpp::GetInstanceFieldObject(carLocal, fieldName);
+        if (!plate) continue;
+
+        bool destroy = false;
+        void* args[3] = {plateInfo, carLocal, &destroy};
+        Il2Cpp::Invoke(start, plate, args);
+    }
+}
+
+void CurrentCar::ApplyNumberPlate() {
+    const int typeIndex = plateEdit.type.load(std::memory_order_relaxed);
+    const int kanjiLeft = plateEdit.kanjiLeft.load(std::memory_order_relaxed);
+    const int kanjiTop = plateEdit.kanjiTop.load(std::memory_order_relaxed);
+    const int top1 = plateEdit.numberTop1.load(std::memory_order_relaxed);
+    const int top2 = plateEdit.numberTop2.load(std::memory_order_relaxed);
+    const int top3 = plateEdit.numberTop3.load(std::memory_order_relaxed);
+    const int big1 = plateEdit.numberBig1.load(std::memory_order_relaxed);
+    const int big2 = plateEdit.numberBig2.load(std::memory_order_relaxed);
+    const int big3 = plateEdit.numberBig3.load(std::memory_order_relaxed);
+    const int big4 = plateEdit.numberBig4.load(std::memory_order_relaxed);
+
+    MainThread::Post([=]() {
+        Il2CppObject* carLocal = Shared::CarLocal();
+        if (!carLocal) { status.Set("CarLocal not found"); plateDirty.store(false, std::memory_order_relaxed); return; }
+
+        const std::vector<Il2Cpp::EnumMember>& types = Enums::PlateTypes();
+        if (typeIndex < 0 || typeIndex >= static_cast<int>(types.size())) {
+            status.Set("Plate types unavailable");
+            plateDirty.store(false, std::memory_order_relaxed);
+            return;
+        }
+
+        Il2CppObject* plateInfo = Il2Cpp::GetInstanceFieldObject(carLocal, "localPlateInfo");
+        if (!plateInfo) {
+            // No stored plate yet: generate one so there is an object to edit
+            Il2CppClass* plateClass = Il2Cpp::FindClass("car_numberPlate");
+            const MethodInfo* generate = plateClass ? Il2Cpp::GetMethod(plateClass, "generateNumberPlate", 1) : nullptr;
+            if (!generate) { status.Set("generateNumberPlate not found"); plateDirty.store(false, std::memory_order_relaxed); return; }
+            int32_t plateType = 0;
+            void* genArgs[1] = {&plateType};
+            plateInfo = Il2Cpp::Invoke(generate, nullptr, genArgs);
+        }
+        if (!plateInfo) { status.Set("Failed to create plate info"); plateDirty.store(false, std::memory_order_relaxed); return; }
+
+        if (!Shared::SetEnumField(plateInfo, "plateType", types[typeIndex])) {
+            status.Set("plateType field not found");
+            plateDirty.store(false, std::memory_order_relaxed);
+            return;
+        }
+
+        const int32_t kanjiLeftValue = kanjiLeft;
+        const int32_t kanjiTopValue = kanjiTop;
+        const int32_t top1Value = top1;
+        const int32_t top2Value = top2;
+        const int32_t top3Value = top3;
+        const int32_t big1Value = big1;
+        const int32_t big2Value = big2;
+        const int32_t big3Value = big3;
+        const int32_t big4Value = big4;
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "kanji_left", kanjiLeftValue);
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "kanji_top", kanjiTopValue);
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "number_top_1", top1Value);
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "number_top_2", top2Value);
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "number_top_3", top3Value);
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "number_big_1", big1Value);
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "number_big_2", big2Value);
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "number_big_3", big3Value);
+        Il2Cpp::SetInstanceFieldValue(plateInfo, "number_big_4", big4Value);
+
+        ApplyPlateToCar(carLocal, plateInfo);
+        status.Set("Number plate updated");
+        plateDirty.store(false, std::memory_order_relaxed);
+    });
+}
+
+void CurrentCar::RandomizeNumberPlate() {
+    const int typeIndex = plateEdit.type.load(std::memory_order_relaxed);
+
+    MainThread::Post([typeIndex]() {
+        Il2CppObject* carLocal = Shared::CarLocal();
+        if (!carLocal) { status.Set("CarLocal not found"); plateDirty.store(false, std::memory_order_relaxed); return; }
+
+        Il2CppClass* plateClass = Il2Cpp::FindClass("car_numberPlate");
+        const MethodInfo* generate = plateClass ? Il2Cpp::GetMethod(plateClass, "generateNumberPlate", 1) : nullptr;
+        if (!generate) { status.Set("generateNumberPlate not found"); plateDirty.store(false, std::memory_order_relaxed); return; }
+
+        // NumberPlateType black/green/glow map to 0/1/2, so the combo index is
+        // the enum value the generator expects
+        int32_t plateType = typeIndex < 0 ? 0 : typeIndex;
+        void* genArgs[1] = {&plateType};
+        Il2CppObject* plateInfo = Il2Cpp::Invoke(generate, nullptr, genArgs);
+        if (!plateInfo) { status.Set("generateNumberPlate returned null"); plateDirty.store(false, std::memory_order_relaxed); return; }
+
+        ApplyPlateToCar(carLocal, plateInfo);
+        status.Set("Number plate randomized");
+        plateDirty.store(false, std::memory_order_relaxed);
+    });
+}
+
+// Car save
+
+void CurrentCar::SaveCar() {
     MainThread::Post([]() {
         Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
         Il2CppObject* god = Shared::God();
-        if (!godClass || !god) { status.Set("GodConstant not found"); return; }
+        Il2CppObject* carLocal = Shared::CarLocal();
+        if (!godClass || !god || !carLocal) { status.Set("Car or GodConstant not found"); return; }
 
-        const MethodInfo* method = Il2Cpp::GetMethod(godClass, "player_updateCarCacheStats", 1);
-        if (!method) { status.Set("player_updateCarCacheStats not found"); return; }
+        const MethodInfo* method = Il2Cpp::GetMethod(godClass, "saveCar_ownedCar", 1);
+        if (!method) { status.Set("saveCar_ownedCar not found"); return; }
 
-        bool save = true;
-        void* args[1] = {&save};
-        Il2Cpp::Invoke(method, god, args);
-        status.Set("Car stats saved");
+        void* args[1] = {carLocal};
+        Il2CppObject* enumerator = Il2Cpp::Invoke(method, god, args);
+        if (!enumerator) { status.Set("saveCar_ownedCar returned null"); return; }
+
+        Il2Cpp::StartCoroutine(god, enumerator);
+        status.Set("Car saved");
     });
 }
 
@@ -204,6 +343,36 @@ void CurrentCar::RefreshSnapshot() {
         frozenNos.store(nos, std::memory_order_relaxed);
     }
     if (haveNos || nosFreeze) snapshot.nosFuelLevel.store(nos, std::memory_order_relaxed);
+
+    // Number plate
+    snapshot.plateLoaded.store(carLocal != nullptr, std::memory_order_relaxed);
+    Il2CppObject* plateInfo = carLocal ? Il2Cpp::GetInstanceFieldObject(carLocal, "localPlateInfo") : nullptr;
+    if (plateInfo) {
+        int32_t plateType = 0, kanjiLeft = 0, kanjiTop = 0;
+        int32_t top1 = 0, top2 = 0, top3 = 0;
+        int32_t big1 = 0, big2 = 0, big3 = 0, big4 = 0;
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "plateType", plateType);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "kanji_left", kanjiLeft);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "kanji_top", kanjiTop);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "number_top_1", top1);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "number_top_2", top2);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "number_top_3", top3);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "number_big_1", big1);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "number_big_2", big2);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "number_big_3", big3);
+        Il2Cpp::GetInstanceFieldValue(plateInfo, "number_big_4", big4);
+
+        snapshot.plate.type.store(plateType, std::memory_order_relaxed);
+        snapshot.plate.kanjiLeft.store(kanjiLeft, std::memory_order_relaxed);
+        snapshot.plate.kanjiTop.store(kanjiTop, std::memory_order_relaxed);
+        snapshot.plate.numberTop1.store(top1, std::memory_order_relaxed);
+        snapshot.plate.numberTop2.store(top2, std::memory_order_relaxed);
+        snapshot.plate.numberTop3.store(top3, std::memory_order_relaxed);
+        snapshot.plate.numberBig1.store(big1, std::memory_order_relaxed);
+        snapshot.plate.numberBig2.store(big2, std::memory_order_relaxed);
+        snapshot.plate.numberBig3.store(big3, std::memory_order_relaxed);
+        snapshot.plate.numberBig4.store(big4, std::memory_order_relaxed);
+    }
 }
 
 void CurrentCar::RenderTab() {
@@ -239,7 +408,6 @@ void CurrentCar::RenderTab() {
     } else {
         Shared::RenderEnumCombo("Fuel type", Enums::FuelTypes(), snapshot.fuelTypeIndex.load(std::memory_order_relaxed), ApplyFuelType);
     }
-
 
     // Freeze checkbox lambda for ease of use
     void (*renderFreeze)(const char* id, bool value, std::atomic_bool & target) = [](const char* id, bool value, std::atomic_bool& target) {
@@ -362,8 +530,80 @@ void CurrentCar::RenderTab() {
     if (ImGui::Button("Change Oil")) {
         ChangeOil();
     }
-    if (ImGui::Button("Save Car Stats")) {
-        SaveCarStats();
+    ImGui::SameLine();
+    if (ImGui::Button("Clean Car")) {
+        CleanCar();
+    }
+    
+    if (ImGui::Button("Save Car")) {
+        SaveCar();
+    }
+
+    if (snapshot.plateLoaded.load(std::memory_order_relaxed)) {
+        ImGui::SeparatorText("Number plate");
+
+        if (!plateDirty.load(std::memory_order_relaxed)) {
+            plateEdit.type.store(snapshot.plate.type.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.kanjiLeft.store(snapshot.plate.kanjiLeft.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.kanjiTop.store(snapshot.plate.kanjiTop.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.numberTop1.store(snapshot.plate.numberTop1.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.numberTop2.store(snapshot.plate.numberTop2.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.numberTop3.store(snapshot.plate.numberTop3.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.numberBig1.store(snapshot.plate.numberBig1.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.numberBig2.store(snapshot.plate.numberBig2.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.numberBig3.store(snapshot.plate.numberBig3.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            plateEdit.numberBig4.store(snapshot.plate.numberBig4.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        }
+
+        if (!Enums::Ready() || Enums::PlateTypes().empty()) {
+            ImGui::TextUnformatted("Plate types unavailable.");
+        } else {
+            Shared::RenderEnumCombo("Plate type", Enums::PlateTypes(), plateEdit.type.load(std::memory_order_relaxed), [](int index) {
+                plateEdit.type.store(index, std::memory_order_relaxed);
+                plateDirty.store(true, std::memory_order_relaxed);
+            });
+        }
+
+        // The game's plate digit sprites: kanji_left 0..9, kanji_top 0..10,
+        // the top serial digits 0..8 and the big serial digits 0..9
+        auto renderPlateField = [](const char* label, std::atomic<int>& field, int minValue, int maxValue) {
+            int value = field.load(std::memory_order_relaxed);
+            ImGui::SetNextItemWidth(45.0f);
+            if (ImGui::InputInt(label, &value, 0, 0)) {
+                if (value < minValue) value = minValue;
+                if (value > maxValue) value = maxValue;
+                if (field.load(std::memory_order_relaxed) != value) {
+                    field.store(value, std::memory_order_relaxed);
+                    plateDirty.store(true, std::memory_order_relaxed);
+                }
+            }
+        };
+
+        renderPlateField("Kanji left", plateEdit.kanjiLeft, 0, 9);
+        ImGui::SameLine();
+        renderPlateField("Kanji top", plateEdit.kanjiTop, 0, 10);
+
+        renderPlateField("Top 1", plateEdit.numberTop1, 0, 8);
+        ImGui::SameLine();
+        renderPlateField("Top 2", plateEdit.numberTop2, 0, 8);
+        ImGui::SameLine();
+        renderPlateField("Top 3", plateEdit.numberTop3, 0, 8);
+
+        renderPlateField("Big 1", plateEdit.numberBig1, 0, 9);
+        ImGui::SameLine();
+        renderPlateField("Big 2", plateEdit.numberBig2, 0, 9);
+        ImGui::SameLine();
+        renderPlateField("Big 3", plateEdit.numberBig3, 0, 9);
+        ImGui::SameLine();
+        renderPlateField("Big 4", plateEdit.numberBig4, 0, 9);
+
+        if (ImGui::Button("Apply plate")) {
+            ApplyNumberPlate();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Random plate")) {
+            RandomizeNumberPlate();
+        }
     }
 
     ImGui::EndTabItem();

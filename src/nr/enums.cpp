@@ -12,13 +12,14 @@ std::atomic_bool Enums::requested{false};
 
 const char* Enums::ClassName(Id id) {
     switch (id) {
-    case Id::Drivetrain:    return "CarData.Drivetrain";
-    case Id::InductionType: return "CarData.InductionType";
-    case Id::FuelType:      return "CarLocalCustom.Car_FuelType";
-    case Id::RaceCrews:     return "GodConstant.Race_Crews";
-    case Id::MeetSpots:     return "GodConstant.MeetSpots_All";
-    case Id::HouseSaveIds:  return "homegarageSpot.HouseSaveID";
-    default:                return "";
+    case Id::Drivetrain:      return "CarData.Drivetrain";
+    case Id::InductionType:   return "CarData.InductionType";
+    case Id::FuelType:        return "CarLocalCustom.Car_FuelType";
+    case Id::RaceCrews:       return "GodConstant.Race_Crews";
+    case Id::MeetSpots:       return "GodConstant.MeetSpots_All";
+    case Id::HouseSaveIds:    return "homegarageSpot.HouseSaveID";
+    case Id::NumberPlateType: return "car_numberPlate.NumberPlateType";
+    default:                  return "";
     }
 }
 
@@ -71,6 +72,7 @@ const std::vector<Il2Cpp::EnumMember>& Enums::FuelTypes() { return Get(Id::FuelT
 const std::vector<Il2Cpp::EnumMember>& Enums::RaceCrews() { return Get(Id::RaceCrews); }
 const std::vector<Il2Cpp::EnumMember>& Enums::MeetSpots() { return Get(Id::MeetSpots); }
 const std::vector<Il2Cpp::EnumMember>& Enums::HouseSaveIds() { return Get(Id::HouseSaveIds); }
+const std::vector<Il2Cpp::EnumMember>& Enums::PlateTypes() { return Get(Id::NumberPlateType); }
 
 int Enums::IndexOf(Id id, const void* raw, size_t size) {
     return Shared::FindEnumIndex(Get(id), raw, size);

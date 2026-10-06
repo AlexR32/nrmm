@@ -21,6 +21,7 @@ public:
         RaceCrews,     // GodConstant.Race_Crews
         MeetSpots,     // GodConstant.MeetSpots_All
         HouseSaveIds,  // homegarageSpot.HouseSaveID
+        NumberPlateType, // car_numberPlate.NumberPlateType
         Count,
     };
 
@@ -42,6 +43,7 @@ public:
     static const std::vector<Il2Cpp::EnumMember>& RaceCrews();
     static const std::vector<Il2Cpp::EnumMember>& MeetSpots();
     static const std::vector<Il2Cpp::EnumMember>& HouseSaveIds();
+    static const std::vector<Il2Cpp::EnumMember>& PlateTypes();
 
     // Index of the literal whose raw bytes match, or -1 when it is not listed
     static int IndexOf(Id id, const void* raw, size_t size);
