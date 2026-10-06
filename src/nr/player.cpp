@@ -394,7 +394,7 @@ void Player::RenderTab() {
 
     float nightRep = freezeNightRepOn ? frozenNightRep.load(std::memory_order_relaxed) : snapshot.nightRep.load(std::memory_order_relaxed);
     ImGui::SetNextItemWidth(120.0f);
-    if (ImGui::InputFloat("Night reputation", &nightRep, 1.0f, 10.0f, "%.1f")) {
+    if (ImGui::InputFloat("Night reputation", &nightRep, 0.1f, 1.0f, "%.1f")) {
         if (nightRep > 3.0f) nightRep = 3.0f;
         if (nightRep < 0.0f) nightRep = 0.0f;
         frozenNightRep.store(nightRep, std::memory_order_relaxed);
