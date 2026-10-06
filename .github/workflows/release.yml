@@ -57,9 +57,27 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         uses: microsoft/setup-msbuild@v3
 
-      - name: Build (Release x64)
+      - name: Sync bootstrapper version
         if: steps.check.outputs.exists == 'false'
-        run: msbuild nrmm.vcxproj /m /p:Configuration=Release /p:Platform=x64
+        shell: pwsh
+        run: ./scripts/update_bootstrapper_version.ps1
+
+      - name: Build nrmm (Release x64)
+        if: steps.check.outputs.exists == 'false'
+        run: msbuild nrmm\nrmm.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\
+
+      - name: Build bootstrapper (Release x64)
+        if: steps.check.outputs.exists == 'false'
+        run: msbuild bootstrapper\bootstrapper.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\
+
+      - name: Package
+        if: steps.check.outputs.exists == 'false'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item bin/nrmm.dll dist/
+          Copy-Item bin/bootstrapper.exe dist/
+          Compress-Archive -Path dist/* -DestinationPath "nrmm-${{ steps.version.outputs.value }}.zip" -Force
 
       - name: Create GitHub release
         if: steps.check.outputs.exists == 'false'
@@ -70,4 +88,5 @@ jobs:
           generate_release_notes: true
           make_latest: true
           files: |
+            nrmm-${{ steps.version.outputs.value }}.zip
             bin/nrmm.dll

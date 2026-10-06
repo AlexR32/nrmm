@@ -2,5 +2,6 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
+  <Project Path="bootstrapper/bootstrapper.vcxproj" Id="dbecbb4c-8160-459b-81b6-f08cf0833ceb" />
   <Project Path="nrmm\nrmm.vcxproj" Id="7ffee7ca-682b-4257-ae13-da370d1a2acf" />
 </Solution>

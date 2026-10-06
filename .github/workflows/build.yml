@@ -25,17 +25,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content .version -Raw).Trim()
+          if ($version -notmatch '^\d+\.\d+\.\d+([-+].+)?$') {
+            throw "Invalid .version '$version' (expected semver, e.g. 1.0.0)"
+          }
+          "value=$version" | Add-Content -Path $env:GITHUB_OUTPUT
+          "tag=v$version" | Add-Content -Path $env:GITHUB_OUTPUT
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v3
 
-      - name: Build (Release x64)
-        run: msbuild nrmm.vcxproj /m /p:Configuration=Release /p:Platform=x64
+      - name: Sync bootstrapper version
+        shell: pwsh
+        run: ./scripts/update_bootstrapper_version.ps1
+
+      - name: Build nrmm (Release x64)
+        run: msbuild nrmm\nrmm.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\
+
+      - name: Build bootstrapper (Release x64)
+        run: msbuild bootstrapper\bootstrapper.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item bin/nrmm.dll dist/
+          Copy-Item bin/bootstrapper.exe dist/
+          Compress-Archive -Path dist/* -DestinationPath "nrmm-${{ steps.version.outputs.value }}.zip" -Force
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: nrmm
+          name: nrmm-${{ steps.version.outputs.value }}
           path: |
+            nrmm-${{ steps.version.outputs.value }}.zip
             bin/nrmm.dll
-            bin/nrmm.pdb
           if-no-files-found: error
