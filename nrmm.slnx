@@ -2,5 +2,5 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
-  <Project Path="nrmm.vcxproj" Id="7ffee7ca-682b-4257-ae13-da370d1a2acf" />
+  <Project Path="nrmm\nrmm.vcxproj" Id="7ffee7ca-682b-4257-ae13-da370d1a2acf" />
 </Solution>
