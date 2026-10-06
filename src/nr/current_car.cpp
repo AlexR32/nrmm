@@ -242,6 +242,8 @@ void CurrentCar::SaveCar() {
         void* statsArgs[1] = {&save};
         Il2Cpp::Invoke(updateStats, god, statsArgs);
 
+        // The saves above only update ES3's in-memory cache; flush it to disk now
+        if (!Shared::ForceSaveGame()) { status.Set("Car saved, but the save flush failed"); return; }
         status.Set("Car saved");
     });
 }

@@ -48,6 +48,9 @@ private:
     static void EndNight();
     static void UnlockAllParts();
 
+    // Flushes the game's ES3 cache to disk so menu edits persist immediately
+    static void ForceSaveGame();
+
     // Money / reputation. Each category drives the game's own
     // GodConstant.changeMoneyRep, which clamps the value and persists it through
     // ES3. The arguments a category does not own are zeroed so the categories

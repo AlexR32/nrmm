@@ -89,6 +89,16 @@ void Player::EndNight() {
     });
 }
 
+void Player::ForceSaveGame() {
+    MainThread::Post([]() {
+        if (Shared::ForceSaveGame()) {
+            status.Set("Game saved");
+        } else {
+            status.Set("saveGame not found");
+        }
+    });
+}
+
 std::string Player::MeetspotName(int32_t id) {
     // The MeetSpots_All literal is the same numeric value as
     // changeScene.targetMeetSpot, so the enum name doubles as a display name
@@ -408,6 +418,11 @@ void Player::RenderTab() {
     ImGui::SameLine();
     ImGui::SetNextItemWidth(120.0f);
     ImGui::InputInt("Betting money", &bettingMoneyToAdd);
+
+    ImGui::SeparatorText("Save");
+    if (ImGui::Button("Force Save Game")) {
+        ForceSaveGame();
+    }
 
     ImGui::EndTabItem();
 }

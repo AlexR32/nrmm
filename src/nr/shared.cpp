@@ -144,6 +144,19 @@ void Shared::DestroyObject(Il2CppObject* object) {
     Il2Cpp::Invoke(destroy, nullptr, args);
 }
 
+bool Shared::ForceSaveGame() {
+    Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
+    Il2CppObject* god = God();
+    if (!godClass || !god) return false;
+
+    // saveGame wraps PlanetJem.Save.GameSave.Dump, which flushes the cache to disk
+    const MethodInfo* saveGame = Il2Cpp::GetMethod(godClass, "saveGame", 0);
+    if (!saveGame) return false;
+
+    Il2Cpp::Invoke(saveGame, god, nullptr);
+    return true;
+}
+
 bool Shared::GetMainMenuMode(MainMenuMode& outMode) {
     Il2Cpp::ThreadAttach();
 

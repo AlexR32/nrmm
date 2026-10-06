@@ -89,6 +89,14 @@ public:
     static Il2CppObject* WaitForResultField(Il2CppObject* instance, const char* fieldName);
     static void DestroyObject(Il2CppObject* object);
 
+    // Writes the game's ES3 cache to disk. GodConstant.es3_settings uses
+    // ES3.Location.Cache, so ES3.Save only updates the in-memory ES3File cache;
+    // the game itself flushes it only on scene transitions and quit. This calls
+    // GodConstant.saveGame (which wraps GameSave.Dump) to force the write now, so
+    // menu edits made through ES3 persist without waiting for a scene change.
+    // Call on the script thread. Returns false when it could not be resolved
+    static bool ForceSaveGame();
+
     // mainMenu.MainMenu_mode values, mirroring the enum nested in the mainMenu
     // MonoBehaviour and its private mainMenu_mode field
     enum class MainMenuMode : int32_t {
