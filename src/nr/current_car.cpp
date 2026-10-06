@@ -215,7 +215,6 @@ void CurrentCar::RandomizeNumberPlate() {
 }
 
 // Car save
-
 void CurrentCar::SaveCar() {
     MainThread::Post([]() {
         Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
@@ -223,14 +222,26 @@ void CurrentCar::SaveCar() {
         Il2CppObject* carLocal = Shared::CarLocal();
         if (!godClass || !god || !carLocal) { status.Set("Car or GodConstant not found"); return; }
 
-        const MethodInfo* method = Il2Cpp::GetMethod(godClass, "saveCar_ownedCar", 1);
-        if (!method) { status.Set("saveCar_ownedCar not found"); return; }
+        const MethodInfo* saveEngine = Il2Cpp::GetMethod(godClass, "saveCarEngine", 1);
+        const MethodInfo* saveParts = Il2Cpp::GetMethod(godClass, "saveCarParts", 3);
+        const MethodInfo* updateStats = Il2Cpp::GetMethod(godClass, "player_updateCarCacheStats", 1);
+        if (!saveEngine || !saveParts || !updateStats) { status.Set("Car save methods not found"); return; }
 
-        void* args[1] = {carLocal};
-        Il2CppObject* enumerator = Il2Cpp::Invoke(method, god, args);
-        if (!enumerator) { status.Set("saveCar_ownedCar returned null"); return; }
+        // saveCarEngine(carlocal)
+        void* engineArgs[1] = {carLocal};
+        Il2Cpp::Invoke(saveEngine, god, engineArgs);
 
-        Il2Cpp::StartCoroutine(god, enumerator);
+        // saveCarParts(carlocal, GodConstant.SaveParts._all, false)
+        int32_t mode = 7; // SaveParts._all
+        bool firstTimeSave = false;
+        void* partsArgs[3] = {carLocal, &mode, &firstTimeSave};
+        Il2Cpp::Invoke(saveParts, god, partsArgs);
+
+        // player_updateCarCacheStats(true)
+        bool save = true;
+        void* statsArgs[1] = {&save};
+        Il2Cpp::Invoke(updateStats, god, statsArgs);
+
         status.Set("Car saved");
     });
 }
