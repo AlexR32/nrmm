@@ -14,6 +14,7 @@
 #include "nr/current_car.h"
 #include "nr/fixes.h"
 #include "nr/music.h"
+#include "nr/loading_video.h"
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -209,6 +210,7 @@ void Menu::RenderMainWindow() {
         {"Garage", Garage::RenderTab},
         {"Auction", Auction::RenderTab},
         {"Music", Music::RenderTab},
+        {"Loading", LoadingVideo::RenderTab},
         {"Fixes", Fixes::RenderTab},
     };
     const int tabCount = IM_ARRAYSIZE(tabs);

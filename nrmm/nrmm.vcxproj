@@ -42,6 +42,7 @@
     <ClInclude Include="src\nr\fixes.h" />
     <ClInclude Include="src\nr\garage.h" />
     <ClInclude Include="src\nr\hooks.h" />
+    <ClInclude Include="src\nr\loading_video.h" />
     <ClInclude Include="src\nr\music.h" />
     <ClInclude Include="src\nr\player.h" />
     <ClInclude Include="src\nr\shared.h" />
@@ -107,6 +108,7 @@
     <ClCompile Include="src\nr\fixes.cpp" />
     <ClCompile Include="src\nr\garage.cpp" />
     <ClCompile Include="src\nr\hooks.cpp" />
+    <ClCompile Include="src\nr\loading_video.cpp" />
     <ClCompile Include="src\nr\music.cpp" />
     <ClCompile Include="src\nr\player.cpp" />
     <ClCompile Include="src\nr\shared.cpp" />

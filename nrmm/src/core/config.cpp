@@ -59,6 +59,13 @@ void Config::Load() {
             } else if (key == "unload_key") {
                 int vk = 0;
                 if (ParseKey(value, vk)) unloadKey.store(vk, std::memory_order_relaxed);
+            } else if (key == "loading_video") {
+                loadingVideo.store(ParseBool(value, false), std::memory_order_relaxed);
+            } else if (key == "loading_video_random") {
+                loadingVideoRandom.store(ParseBool(value, false), std::memory_order_relaxed);
+            } else if (key == "loading_video_file") {
+                std::lock_guard<std::mutex> valueLock(valueMutex);
+                loadingVideoFile = value;
             }
         }
     }
@@ -78,6 +85,9 @@ void Config::Save() {
     file << "debug_console=" << (DebugConsole() ? 1 : 0) << '\n';
     file << "toggle_key=" << ToggleKey() << '\n';
     file << "unload_key=" << UnloadKey() << '\n';
+    file << "loading_video=" << (LoadingVideo() ? 1 : 0) << '\n';
+    file << "loading_video_random=" << (LoadingVideoRandom() ? 1 : 0) << '\n';
+    file << "loading_video_file=" << LoadingVideoFile() << '\n';
     file.flush();
 }
 
@@ -100,5 +110,28 @@ void Config::SetToggleKey(int vk) {
 
 void Config::SetUnloadKey(int vk) {
     unloadKey.store(vk, std::memory_order_relaxed);
+    Save();
+}
+
+void Config::SetLoadingVideo(bool enabled) {
+    loadingVideo.store(enabled, std::memory_order_relaxed);
+    Save();
+}
+
+void Config::SetLoadingVideoRandom(bool enabled) {
+    loadingVideoRandom.store(enabled, std::memory_order_relaxed);
+    Save();
+}
+
+std::string Config::LoadingVideoFile() {
+    std::lock_guard<std::mutex> lock(valueMutex);
+    return loadingVideoFile;
+}
+
+void Config::SetLoadingVideoFile(const std::string& path) {
+    {
+        std::lock_guard<std::mutex> lock(valueMutex);
+        loadingVideoFile = path;
+    }
     Save();
 }

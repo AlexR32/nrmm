@@ -9,6 +9,7 @@
 #include "current_car.h"
 #include "fixes.h"
 #include "music.h"
+#include "loading_video.h"
 #include "shared.h"
 #include "backends/d3d11.h"
 #include "il2cpp/il2cpp.h"
@@ -41,6 +42,7 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
     // music player, which has to happen on this script thread
     if (D3D11Hook::shuttingDown.load(std::memory_order_acquire)) {
         Music::Shutdown();
+        LoadingVideo::Shutdown();
         if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
         return;
     }
@@ -71,6 +73,7 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
 
     Garage::Pump();
     Music::Pump();
+    LoadingVideo::Pump();
 
     if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
 }
