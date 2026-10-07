@@ -4,8 +4,6 @@
 
 class Menu {
 public:
-    static constexpr const char* kWindowName = "NIGHT RUNNERS MOD MENU";
-
     static inline std::atomic_bool initialized{false};
     static inline std::atomic_bool visible{true};
 
@@ -18,6 +16,9 @@ private:
         WPARAM wParam;
         LPARAM lParam;
     };
+
+    static constexpr const char* kWindowName = "NIGHT RUNNERS MOD MENU";
+    static constexpr const char* kOverlayText = "NRMM | alexr32 @ discord.com";
 
     static constexpr float kWidth = 560.0f;
 

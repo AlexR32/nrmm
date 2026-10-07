@@ -277,7 +277,7 @@ void Menu::Render() {
     // Shared::GameReady() is false and no tab runs any game action
 
     ImVec2 topCenter = ImVec2({io.DisplaySize.x * 0.5f, 0.0f});
-    Overlay::TextOutlinedCentered("NRMM | alexr32 @ discord.com", topCenter);
+    Overlay::TextOutlinedCentered(kOverlayText, topCenter, IM_COL32(255, 255, 255, 120), IM_COL32(0, 0, 0, 120));
 
     Logger::Render();
 

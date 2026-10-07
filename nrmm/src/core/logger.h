@@ -31,6 +31,9 @@ private:
         Color color;
     };
 
+    static constexpr const char* kWindowName = "Debug Console";
+    static constexpr ImVec2 kWindowPos = ImVec2(60.0f, 540.0f);
+
     static constexpr std::size_t kMaxEntries = 2000;
 
     static inline std::vector<Entry> entries;
@@ -49,9 +52,6 @@ private:
     static void WriteToFile(const wchar_t* message);
 
 public:
-    static constexpr const char* kWindowName = "Debug Console";
-    static constexpr ImVec2 kWindowPos = ImVec2(60.0f, 540.0f);
-
     Logger() = delete;
 
     // Opens "<logDirectory>\<fileName>.log" for writing, purging any existing contents.
