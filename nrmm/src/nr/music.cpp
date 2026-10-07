@@ -922,7 +922,6 @@ void Music::RenderTab() {
 
     if (!listLoaded.load(std::memory_order_acquire)) Reload();
 
-    ImGui::TextWrapped("Drop .wav, .mp3 or .ogg files into the \"music\" folder next to nrmm.dll.");
     if (ImGui::SmallButton("Reload folder")) Reload();
     ImGui::SameLine();
 
@@ -934,6 +933,7 @@ void Music::RenderTab() {
     ImGui::TextDisabled("%d track(s)", static_cast<int>(snapshot.size()));
 
     if (snapshot.empty()) {
+        ImGui::TextWrapped("Drop .wav, .mp3 or .ogg files into the \"music\" folder");
         ImGui::EndTabItem();
         return;
     }
