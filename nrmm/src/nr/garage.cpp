@@ -120,18 +120,41 @@ void Garage::StartSpawn() {
             return true;
         }
 
-        // The whole ChassisType enum is passed so any chassis is accepted, and
-        // the selected ModelType narrows the pool down to the requested car
-        std::vector<Il2Cpp::EnumMember> chassisMembers = Il2Cpp::GetEnumMembers(chassisEnum);
+        // Pass only the chassis the selected model has an origin for. Handing
+        // spawnShopCar the whole enum lets it pick a chassis with no matching
+        // origin, and that coroutine never completes
+        std::unordered_set<int32_t> validChassis;
+        std::unordered_map<int32_t, std::vector<int32_t>> chassisByModel;
+        if (!Shared::CollectCarOrigins(validChassis, chassisByModel)) {
+            spawn.Fail("Car origins not loaded yet");
+            return true;
+        }
 
-        std::vector<const Il2Cpp::EnumMember*> chassisValues;
-        chassisValues.reserve(chassisMembers.size());
+        int32_t modelValue = 0;
+        if (ctx.modelValue.size() >= sizeof(int32_t)) {
+            memcpy(&modelValue, ctx.modelValue.data(), sizeof(int32_t));
+        }
+        const auto modelIt = chassisByModel.find(modelValue);
+        if (modelIt == chassisByModel.end() || modelIt->second.empty()) {
+            spawn.Fail("Selected model has no car origin");
+            return true;
+        }
+
+        std::vector<Il2Cpp::EnumMember> chassisMembers = Il2Cpp::GetEnumMembers(chassisEnum);
+        std::unordered_map<int32_t, const Il2Cpp::EnumMember*> chassisById;
         for (const Il2Cpp::EnumMember& member : chassisMembers) {
             // Same as the model list: drop the placeholder values by name
             if (member.name == "null_type" || member.name == "generic") continue;
-            chassisValues.push_back(&member);
+            chassisById[Shared::EnumValue(member)] = &member;
         }
-        if (chassisValues.empty()) { spawn.Fail("No chassis values found"); return true; }
+
+        std::vector<const Il2Cpp::EnumMember*> chassisValues;
+        chassisValues.reserve(modelIt->second.size());
+        for (int32_t chassisId : modelIt->second) {
+            const auto chassisIt = chassisById.find(chassisId);
+            if (chassisIt != chassisById.end()) chassisValues.push_back(chassisIt->second);
+        }
+        if (chassisValues.empty()) { spawn.Fail("No chassis found for the selected model"); return true; }
 
         Il2CppArray* cars = Il2Cpp::NewArray(chassisEnum, chassisValues.size());
         if (!cars) { spawn.Fail("Failed to allocate the chassis array"); return true; }
@@ -261,11 +284,21 @@ void Garage::AddSelectedToGarage() {
 // Building the option list touches the runtime, so it is handed to the script
 // thread. The render thread only reads the finished list once modelLoaded is set
 void Garage::LoadModelOptionsNow() {
-    modelLoadAttempted.store(true);
-
     Il2CppClass* modelEnum = Il2Cpp::FindClass("car_carOrigin.ModelType");
     if (!modelEnum) {
+        modelLoadAttempted.store(true);
         status.Set("ModelType enum not found");
+        return;
+    }
+
+    // Keep only models that have a loaded car origin. A model with no origin
+    // makes spawnShopCar's coroutine hang, which is what timed the spawn out
+    std::unordered_set<int32_t> validChassis;
+    std::unordered_map<int32_t, std::vector<int32_t>> chassisByModel;
+    if (!Shared::CollectCarOrigins(validChassis, chassisByModel)) {
+        // Leave modelLoadAttempted clear so the list is rebuilt once the origin
+        // container has been loaded. The tab shows "No model types available"
+        // meanwhile, so this retry stays silent to avoid log spam
         return;
     }
 
@@ -273,14 +306,17 @@ void Garage::LoadModelOptionsNow() {
     std::vector<Il2Cpp::EnumMember> members = Il2Cpp::GetEnumMembers(modelEnum);
 
     std::vector<ModelOption> options;
-    if (members.size() > 2) options.reserve(members.size() - 2);
+    options.reserve(chassisByModel.size());
     for (const Il2Cpp::EnumMember& member : members) {
         // Skip the placeholder entries by name instead of by index: some enums
         // only carry null_type, so dropping a fixed count would lose a real car
         if (member.name == "null_type" || member.name == "generic") continue;
+        // Skip models the game has no origin for
+        if (chassisByModel.find(Shared::EnumValue(member)) == chassisByModel.end()) continue;
         options.push_back({member.name, member.raw});
     }
 
+    modelLoadAttempted.store(true);
     const size_t optionCount = options.size();
 
     // Swap the finished list in under the lock so the render thread never sees
@@ -365,7 +401,7 @@ void Garage::RenderOverrides() {
     ImGui::Unindent();
 }
 
-void Garage::PumpSpawn() {
+void Garage::Pump() {
     spawn.Pump();
 }
 

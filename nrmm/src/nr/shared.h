@@ -147,6 +147,17 @@ public:
     static Il2CppObject* ListGet(Il2CppObject* list, int index);
     static void ListClear(Il2CppObject* list);
 
+    // Every chassis/model pair that has a loaded car_carOrigin, read from
+    // container_allCarOrigins.all_cars. The game's spawnShopCar coroutine never
+    // completes for a pair with no origin, so callers keep only these values
+    // before spawning. validChassis holds every spawnable chassis, while
+    // chassisByModel maps each spawnable model to the chassis it can spawn on.
+    // Returns false when the origin container is not loaded yet
+    static bool CollectCarOrigins(std::unordered_set<int32_t>& validChassis, std::unordered_map<int32_t, std::vector<int32_t>>& chassisByModel);
+
+    // int value of an enum literal. The enums this is used with are int-backed
+    static int32_t EnumValue(const Il2Cpp::EnumMember& member);
+
     // Enum helpers
     // Writes an enum literal (raw bytes from Il2Cpp::GetEnumMembers) into an instance field
     static bool SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member);

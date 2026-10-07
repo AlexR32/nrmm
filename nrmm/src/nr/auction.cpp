@@ -8,6 +8,7 @@
 
 Shared::Status Auction::status("Auction");
 Auction::Snapshot Auction::snapshot;
+bool Auction::refreshPending = false;
 
 // Destroy the instantiated papers and cars, clear the bookkeeping lists and let
 // the game rebuild the listing
@@ -52,14 +53,18 @@ void Auction::RefreshAuction() {
         Shared::ListClear(Il2Cpp::GetInstanceFieldObject(carAuction, "carsSaveList"));
 
         // Bypass loading saved cars and load new ones
-        int32_t lastRefresh = 0;
+        int32_t lastRefresh = -1;
         Il2Cpp::SetInstanceFieldValue(carAuction, "lastRefresh", lastRefresh);
 
         Il2CppClass* auctionClass = Il2Cpp::FindClass("customization_carAuction");
         const MethodInfo* setup = Il2Cpp::GetMethod(auctionClass, "setupCarsForSale", 0);
         if (setup) {
             Il2Cpp::Invoke(setup, carAuction, nullptr);
-            status.Set("Auction refreshed");
+            // setupCarsForSale starts the spawning coroutine, which sets
+            // waitForCarSpawning immediately; the status then flips to
+            // "Auction refreshed" from RefreshSnapshot once it finishes
+            status.Set("Refreshing...");
+            refreshPending = true;
         } else {
             status.Set("setupCarsForSale not found");
         }
@@ -77,16 +82,32 @@ void Auction::UnlockAllAuctionCars() {
         Il2CppClass* chassisEnum = Il2Cpp::FindClass("car_carOrigin.ChassisType");
         if (!chassisEnum) { status.Set("ChassisType enum not found"); return; }
 
-        std::vector<Il2Cpp::EnumMember> members = Il2Cpp::GetEnumMembers(chassisEnum);
-        if (members.size() <= 2) { status.Set("No chassis values found"); return; }
+        // Only unlock chassis that have a car origin. The game passes this list
+        // to spawnShopCar, whose coroutine never completes for a chassis with no
+        // origin, so unlocking the whole enum makes the auction stall
+        std::unordered_set<int32_t> validChassis;
+        std::unordered_map<int32_t, std::vector<int32_t>> chassisByModel;
+        if (!Shared::CollectCarOrigins(validChassis, chassisByModel)) {
+            status.Set("Car origins not loaded yet");
+            return;
+        }
 
-        const size_t count = members.size() - 2;
-        Il2CppArray* unlocked = Il2Cpp::NewArray(chassisEnum, count);
+        std::vector<Il2Cpp::EnumMember> members = Il2Cpp::GetEnumMembers(chassisEnum);
+
+        std::vector<const Il2Cpp::EnumMember*> values;
+        values.reserve(validChassis.size());
+        for (const Il2Cpp::EnumMember& member : members) {
+            if (member.name == "null_type" || member.name == "generic") continue;
+            if (validChassis.find(Shared::EnumValue(member)) == validChassis.end()) continue;
+            values.push_back(&member);
+        }
+        if (values.empty()) { status.Set("No spawnable chassis found"); return; }
+
+        Il2CppArray* unlocked = Il2Cpp::NewArray(chassisEnum, values.size());
         if (!unlocked) { status.Set("Failed to allocate the unlocked array"); return; }
 
-        for (size_t i = 0; i < count; ++i) {
-            const Il2Cpp::EnumMember& member = members[i + 2];
-            Il2Cpp::ArraySetRaw(unlocked, i, member.raw.data(), member.raw.size());
+        for (size_t i = 0; i < values.size(); ++i) {
+            Il2Cpp::ArraySetRaw(unlocked, i, values[i]->raw.data(), values[i]->raw.size());
         }
 
         if (!Il2Cpp::SetInstanceFieldObject(carAuction, "UNLOCKED_CARS", reinterpret_cast<Il2CppObject*>(unlocked))) {
@@ -100,7 +121,7 @@ void Auction::UnlockAllAuctionCars() {
             return;
         }
 
-        status.Set("Unlocked " + std::to_string(count) + " cars");
+        status.Set("Unlocked " + std::to_string(values.size()) + " cars");
     });
 }
 
@@ -114,6 +135,7 @@ void Auction::RefreshSnapshot() {
     if (!carAuction) {
         snapshot.active.store(false, std::memory_order_relaxed);
         snapshot.mode.store(-1, std::memory_order_relaxed);
+        snapshot.refreshing.store(false, std::memory_order_relaxed);
         return;
     }
 
@@ -124,6 +146,18 @@ void Auction::RefreshSnapshot() {
     int32_t mode = -1;
     Il2Cpp::GetInstanceFieldValue(carAuction, "carAuctionMode", mode);
     snapshot.mode.store(mode, std::memory_order_relaxed);
+
+    // The game sets waitForCarSpawning for the whole span of getNewCarsForSale
+    // and loadCarsForSale and clears it once the listing has been rebuilt
+    bool waitingForCars = false;
+    Il2Cpp::GetInstanceFieldValue(carAuction, "waitForCarSpawning", waitingForCars);
+    snapshot.refreshing.store(waitingForCars, std::memory_order_relaxed);
+
+    // Close out a mod-triggered refresh once the game has finished spawning
+    if (refreshPending && !waitingForCars) {
+        refreshPending = false;
+        status.Set("Auction refreshed");
+    }
 }
 
 void Auction::RenderTab() {
@@ -134,8 +168,7 @@ void Auction::RenderTab() {
     // The auction only accepts mod actions while the papers are on screen. The
     // mode and the object's active state are managed values, so they are read on
     // the script thread and mirrored here
-    const bool open = snapshot.available.load(std::memory_order_relaxed)
-        && snapshot.active.load(std::memory_order_relaxed);
+    const bool open = snapshot.available.load(std::memory_order_relaxed) && snapshot.active.load(std::memory_order_relaxed);
     const int mode = snapshot.mode.load(std::memory_order_relaxed);
 
     if (!open || mode != static_cast<int>(Mode::ViewPapers)) {
@@ -145,9 +178,16 @@ void Auction::RenderTab() {
         return;
     }
 
+    // A refresh tears the listing down and rebuilds it, so the button is only
+    // usable once the game has finished spawning the new cars. This also blocks
+    // the button during the initial load of the auction
+    const bool refreshing = snapshot.refreshing.load(std::memory_order_relaxed);
+
+    ImGui::BeginDisabled(refreshing);
     if (ImGui::Button("Refresh Auction")) {
         RefreshAuction();
     }
+    ImGui::EndDisabled();
 
     ImGui::SameLine();
     if (ImGui::Button("Unlock All Cars")) {

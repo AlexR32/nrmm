@@ -4,6 +4,8 @@
 #include "il2cpp/il2cpp.h"
 #include "core/logger.h"
 
+#include <algorithm>
+
 void Shared::Status::Set(const std::string& message) {
     {
         std::lock_guard<std::mutex> lock(mutex);
@@ -324,6 +326,78 @@ void Shared::ListClear(Il2CppObject* list) {
 bool Shared::SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member) {
     if (!instance) return false;
     return Il2Cpp::SetInstanceFieldObject(instance, fieldName, const_cast<uint8_t*>(member.raw.data()));
+}
+
+bool Shared::CollectCarOrigins(std::unordered_set<int32_t>& validChassis, std::unordered_map<int32_t, std::vector<int32_t>>& chassisByModel) {
+    validChassis.clear();
+    chassisByModel.clear();
+
+    Il2CppClass* containerClass = Il2Cpp::FindClass("container_allCarOrigins");
+    if (!containerClass) return false;
+
+    // The container can exist as several instances, only one of which carries
+    // the populated list, so take the first one that has cars
+    Il2CppArray* containers = Il2Cpp::FindObjectsOfTypeAll(containerClass);
+    const size_t containerCount = containers ? Il2Cpp::ArrayLength(containers) : 0;
+
+    Il2CppObject* allCars = nullptr;
+    const MethodInfo* getItem = nullptr;
+    int32_t count = 0;
+
+    for (size_t i = 0; i < containerCount; ++i) {
+        Il2CppObject* container = Il2Cpp::ArrayGetRef(containers, i);
+        if (!container || !Il2Cpp::IsUnityObjectAlive(container)) continue;
+
+        Il2CppObject* cars = Il2Cpp::GetInstanceFieldObject(container, "all_cars");
+        if (!cars) continue;
+
+        const MethodInfo* getCount = Il2Cpp::GetMethod(Il2Cpp::ObjectClass(cars), "get_Count", 0);
+        const MethodInfo* item = Il2Cpp::GetMethod(Il2Cpp::ObjectClass(cars), "get_Item", 1);
+        if (!getCount || !item) continue;
+
+        const int32_t carsCount = Il2Cpp::UnboxInt32(Il2Cpp::Invoke(getCount, cars, nullptr));
+        if (carsCount <= 0) continue;
+
+        allCars = cars;
+        getItem = item;
+        count = carsCount;
+        break;
+    }
+
+    if (count <= 0) return false;
+
+    for (int32_t i = 0; i < count; ++i) {
+        void* args[1] = {&i};
+        Il2CppObject* car = Il2Cpp::Invoke(getItem, allCars, args);
+        if (!car) continue;
+
+        int32_t chassis = 0;
+        int32_t model = 0;
+        if (!Il2Cpp::GetInstanceFieldValue(car, "chassisType", chassis)) continue;
+        if (!Il2Cpp::GetInstanceFieldValue(car, "modelType", model)) continue;
+
+        // Origins the player is not meant to drive (the new-game starter car)
+        // are skipped: they have no home-garage visual and are tutorial-only
+        bool notPlayerCar = false;
+        Il2Cpp::GetInstanceFieldValue(car, "NOT_A_PLAYER_CAR", notPlayerCar);
+        if (notPlayerCar) continue;
+
+        validChassis.insert(chassis);
+        std::vector<int32_t>& chassisList = chassisByModel[model];
+        if (std::find(chassisList.begin(), chassisList.end(), chassis) == chassisList.end()) {
+            chassisList.push_back(chassis);
+        }
+    }
+
+    return !validChassis.empty();
+}
+
+int32_t Shared::EnumValue(const Il2Cpp::EnumMember& member) {
+    int32_t value = 0;
+    if (member.raw.size() >= sizeof(int32_t)) {
+        memcpy(&value, member.raw.data(), sizeof(int32_t));
+    }
+    return value;
 }
 
 int Shared::FindEnumIndex(const std::vector<Il2Cpp::EnumMember>& options, const void* raw, size_t size) {

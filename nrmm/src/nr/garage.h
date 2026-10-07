@@ -16,7 +16,7 @@
 class Garage {
 public:
     static void RenderTab();
-    static void PumpSpawn();
+    static void Pump();
 
 private:
     struct ModelOption {
