@@ -86,6 +86,17 @@ private:
     static void Restore();
     static int CurrentSource(Il2CppObject* player);
 
+    // Sets activeSelf on a component's (or GameObject's) GameObject
+    static void SetActive(Il2CppObject* object, bool active);
+
+    // loadingVideo_clipSource is the game's video source placeholder text; it is
+    // hidden while our clip plays. The music "now playing" song text is the
+    // UI_Text_loading_song child of loading_textMask, hidden the same way and
+    // restored when the override is switched off
+    static void HideClipSource();
+    static void HideLoadingSong();
+    static void RestoreLoadingSong();
+
     static VideoPlayerApi& Api();
 
     static std::string WideToUtf8(const std::wstring& value);
@@ -107,6 +118,9 @@ private:
     // Script-thread only
     static Il2CppObject* dashboard;
     static Il2CppObject* player;
+    static Il2CppObject* clipSource;
+    static Il2CppObject* loadingSong;
+    static bool loadingSongHidden;
     static Il2CppObject* appliedPlayer;
     static std::string appliedUri;
     static bool overrideApplied;

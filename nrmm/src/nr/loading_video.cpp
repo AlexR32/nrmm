@@ -19,6 +19,9 @@ std::mutex LoadingVideo::pathMutex;
 std::string LoadingVideo::selectedPath;
 Il2CppObject* LoadingVideo::dashboard = nullptr;
 Il2CppObject* LoadingVideo::player = nullptr;
+Il2CppObject* LoadingVideo::clipSource = nullptr;
+Il2CppObject* LoadingVideo::loadingSong = nullptr;
+bool LoadingVideo::loadingSongHidden = false;
 Il2CppObject* LoadingVideo::appliedPlayer = nullptr;
 std::string LoadingVideo::appliedUri;
 bool LoadingVideo::overrideApplied = false;
@@ -280,6 +283,84 @@ void LoadingVideo::Restore() {
     appliedPlayer = nullptr;
     appliedUri.clear();
     overrideApplied = false;
+
+    // The game re-shows loadingVideo_clipSource on its own, but nothing brings
+    // the song text back, so restore it here
+    RestoreLoadingSong();
+}
+
+// Sets activeSelf on the GameObject of a component (or GameObject) through
+// UnityEngine.GameObject.SetActive
+void LoadingVideo::SetActive(Il2CppObject* object, bool active) {
+    if (!object) return;
+
+    Il2CppObject* gameObject = Il2Cpp::GetGameObject(object);
+    if (!gameObject) return;
+
+    static const MethodInfo* setActive = nullptr;
+    if (!setActive) {
+        Il2CppClass* klass = Il2Cpp::FindClass("UnityEngine.GameObject", Il2Cpp::GetImage("UnityEngine.CoreModule"));
+        setActive = klass ? Il2Cpp::GetMethod(klass, "SetActive", 1) : nullptr;
+    }
+    if (!setActive) return;
+
+    void* args[1] = { &active };
+    Il2Cpp::Invoke(setActive, gameObject, args);
+}
+
+// The game fills loadingVideo_clipSource with the picked clip's source path and
+// reactivates it on every load. It is only a placeholder label, so keep it
+// hidden while our clip owns the player
+void LoadingVideo::HideClipSource() {
+    if (!dashboard || !Il2Cpp::IsUnityObjectAlive(dashboard)) return;
+
+    if (!clipSource || !Il2Cpp::IsUnityObjectAlive(clipSource)) {
+        clipSource = Il2Cpp::GetInstanceFieldObject(dashboard, "loadingVideo_clipSource");
+        if (!clipSource) return;
+    }
+
+    if (!Il2Cpp::IsActiveSelf(clipSource)) return;
+    SetActive(clipSource, false);
+}
+
+// UI_Text_loading_song is a direct child of loading_textMask and shows the
+// current music track. It is pulled straight from the mask and hidden the same
+// way as loadingVideo_clipSource; it is restored when the override turns off
+// because the game never references it
+void LoadingVideo::HideLoadingSong() {
+    if (!loadingSong || !Il2Cpp::IsUnityObjectAlive(loadingSong)) {
+        loadingSong = nullptr;
+
+        if (!dashboard || !Il2Cpp::IsUnityObjectAlive(dashboard)) return;
+        Il2CppObject* mask = Il2Cpp::GetInstanceFieldObject(dashboard, "loading_textMask");
+        if (!mask) return;
+
+        static const MethodInfo* find = nullptr;
+        if (!find) {
+            Il2CppClass* transformClass = Il2Cpp::FindClass("UnityEngine.Transform", Il2Cpp::GetImage("UnityEngine.CoreModule"));
+            find = transformClass ? Il2Cpp::GetMethod(transformClass, "Find", 1) : nullptr;
+        }
+
+        if (find) {
+            Il2CppString* childName = Il2Cpp::NewString("UI_Text_loading_song");
+            void* args[1] = { childName };
+            loadingSong = Il2Cpp::Invoke(find, mask, args);
+        }
+        if (!loadingSong) loadingSong = Shared::FindDescendantByNamePrefix(mask, "UI_Text_loading_song");
+        if (!loadingSong) return;
+    }
+
+    if (!Il2Cpp::IsActiveSelf(loadingSong)) return;
+
+    SetActive(loadingSong, false);
+    loadingSongHidden = true;
+}
+
+void LoadingVideo::RestoreLoadingSong() {
+    if (!loadingSongHidden) return;
+    loadingSongHidden = false;
+
+    if (loadingSong && Il2Cpp::IsUnityObjectAlive(loadingSong)) SetActive(loadingSong, true);
 }
 
 // Script-thread pump
@@ -327,6 +408,11 @@ void LoadingVideo::Pump() {
     }
 
     Apply(target, ToFileUri(path));
+
+    if (overrideApplied) {
+        HideClipSource();
+        HideLoadingSong();
+    }
 }
 
 void LoadingVideo::Shutdown() {
