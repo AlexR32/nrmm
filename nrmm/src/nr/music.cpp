@@ -661,11 +661,11 @@ void Music::FinishLoad() {
     // The game's MusicPlayer.Update writes currentSource_.volume from
     // currentVolume_ * volumeScale_ every frame, so bring currentVolume_ to full
     // once and let the game's own mixer do the rest (volume slider, speed fade)
-    // Il2CppObject* player = ResolveMusicPlayer();
-    // if (player) {
-    //     musicPlayer = player;
-    //     Il2Cpp::SetInstanceFieldValue(player, "currentVolume_", 1.0f);
-    // }
+    /*Il2CppObject* player = ResolveMusicPlayer();
+    if (player) {
+        musicPlayer = player;
+        Il2Cpp::SetInstanceFieldValue(player, "currentVolume_", 1.0f);
+    }*/
 
     SetClip(audioSource, ourClip);
     PlaySource(audioSource);

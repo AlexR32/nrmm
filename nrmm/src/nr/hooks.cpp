@@ -59,18 +59,17 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
     Enums::LoadAll();
 
     Shared::inMainMenu = Shared::IsInMainMenu();
-    Shared::inGarage = Shared::IsInGarage();
+    // Shared::inGarage = Shared::IsInGarage();
 
     // Read the state the menu displays while we are on the main thread, so the
     // render thread never touches managed objects for its widgets
-    Player::RefreshSnapshot();
-    World::RefreshSnapshot();
-    CurrentCar::RefreshSnapshot();
     Fixes::RefreshSnapshot();
+    Player::RefreshSnapshot();
+    CurrentCar::RefreshSnapshot();
     Auction::RefreshSnapshot();
+    World::RefreshSnapshot();
 
-    Garage::PumpSpawn();
-
+    Garage::Pump();
     Music::Pump();
 
     if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
