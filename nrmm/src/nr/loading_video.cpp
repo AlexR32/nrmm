@@ -119,6 +119,7 @@ void LoadingVideo::Reload() {
 
             File file;
             file.path = WideToUtf8(entry.path().wstring());
+            file.fileName = WideToUtf8(entry.path().filename().wstring());
             file.name = WideToUtf8(entry.path().stem().wstring());
             found.push_back(std::move(file));
         }
@@ -145,7 +146,9 @@ void LoadingVideo::Reload() {
     int index = -1;
     const std::string saved = Config::LoadingVideoFile();
     for (int i = 0; i < static_cast<int>(snapshot.size()); ++i) {
-        if (snapshot[i].path == saved) {
+        // The config stores just the file name (the folder is fixed); the full
+        // path is also accepted so older configs keep working
+        if (snapshot[i].fileName == saved || snapshot[i].path == saved) {
             index = i;
             break;
         }
@@ -451,8 +454,6 @@ void LoadingVideo::RenderTab() {
     }
     ImGui::TextDisabled("%d video(s)", static_cast<int>(snapshot.size()));
 
-    ImGui::TextWrapped("Use an MP4 with H.264 video and AAC audio. Unity's Windows video player cannot decode VP9, AV1 or HEVC, so those files stay black.");
-
     if (snapshot.empty()) {
         ImGui::TextWrapped("Drop an .mp4 (H.264) file into the \"videos\" folder");
         return;
@@ -474,7 +475,7 @@ void LoadingVideo::RenderTab() {
             const bool selected = (i == selectedIndex);
             if (ImGui::Selectable(snapshot[i].name.c_str(), selected)) {
                 Select(snapshot[i].path);
-                Config::SetLoadingVideoFile(snapshot[i].path);
+                Config::SetLoadingVideoFile(snapshot[i].fileName);
             }
             if (selected) ImGui::SetItemDefaultFocus();
         }

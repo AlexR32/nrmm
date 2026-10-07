@@ -42,8 +42,9 @@ public:
 
 private:
     struct File {
-        std::string name;
-        std::string path; // UTF-8 filesystem path
+        std::string name;     // stem, shown in the combo
+        std::string fileName; // file name with extension, persisted in the config
+        std::string path;     // UTF-8 filesystem path
     };
 
     // Cached reflection handles for UnityEngine.Video.VideoPlayer

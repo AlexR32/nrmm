@@ -20,7 +20,7 @@ public:
     static void SetUnloadKey(int vk);
 
     // Loading-video tab: whether the loading screen video is replaced and the
-    // UTF-8 path of the file it is replaced with
+    // file name (inside the mod's videos folder) it is replaced with
     static bool LoadingVideo() { return loadingVideo.load(std::memory_order_relaxed); }
     static void SetLoadingVideo(bool enabled);
     static bool LoadingVideoRandom() { return loadingVideoRandom.load(std::memory_order_relaxed); }
