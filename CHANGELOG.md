@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.5 — October 7, 2026
+
+### Added
+- **Custom music player** (Music tab): play your own `.wav`, `.mp3` and `.ogg` files from a `music` folder next to `nrmm.dll`, routed through the game's own music system so the in-game volume slider and speed effects still apply. Includes a track picker, Play / Stop / Pause / Resume, Prev / Next, and **Playlist** and **Shuffle** modes; the file name is mirrored into the game's now-playing UI and the in-game phone music keys control playback.
+
+### Changed
+- **Auction refresh** now waits for the game to finish rebuilding the listing: the button is disabled while cars are spawning and the status reports `Refreshing...` until it completes.
+- **Unlock All Cars** only unlocks chassis that have a car origin, so the auction no longer stalls on chassis the game cannot spawn.
+- **Garage spawns** pass only the chassis the selected model has an origin for, and the model list now only offers models with a loaded origin, avoiding spawn hangs.
+
+---
+
 ## 1.0.4 — October 6, 2026
 
 ### Added
