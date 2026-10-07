@@ -49,6 +49,9 @@ private:
     static void WriteToFile(const wchar_t* message);
 
 public:
+    static constexpr const char* kWindowName = "Debug Console";
+    static constexpr ImVec2 kWindowPos = ImVec2(60.0f, 540.0f);
+
     Logger() = delete;
 
     // Opens "<logDirectory>\<fileName>.log" for writing, purging any existing contents.

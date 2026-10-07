@@ -68,9 +68,9 @@ public:
 
     static void RenderLabel(const char* text);
 
-    // Opens a tab and, when a save is loaded and the script thread is known,
-    // returns true so the caller can fill it. Otherwise it renders the
-    // "game not loaded" hint, closes the tab and returns false
+    // Gate for a tab's contents: when a save is loaded and the script thread is
+    // known it returns true so the caller can fill it. Otherwise it renders the
+    // "game not loaded" hint and returns false
     static bool BeginGameTab(const char* label);
 
     static void RenderEnumCombo(const char* label, const std::vector<Il2Cpp::EnumMember>& options, int selected, std::function<void(int)> onSelect);

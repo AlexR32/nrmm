@@ -88,18 +88,17 @@ void Shared::Sequence::Pump() {
 
 void Shared::RenderLabel(const char* text) {
     const float textWidth = ImGui::CalcTextSize(text).x;
-    ImGui::SetCursorPosX((ImGui::GetWindowWidth() - textWidth) * 0.5f);
+    const float avail = ImGui::GetContentRegionAvail().x;
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImMax(0.0f, (avail - textWidth) * 0.5f));
     ImGui::TextUnformatted(text);
 }
 
 bool Shared::BeginGameTab(const char* label) {
-    if (!ImGui::BeginTabItem(label)) return false;
-
+    (void)label;
     if (GameReady()) return true;
 
     const char* text = inMainMenu ? "GAME NOT LOADED" : "WAITING FOR GAME THREAD";
     Shared::RenderLabel(text);
-    ImGui::EndTabItem();
     return false;
 }
 

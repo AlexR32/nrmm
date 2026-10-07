@@ -174,7 +174,6 @@ void Auction::RenderTab() {
     if (!open || mode != static_cast<int>(Mode::ViewPapers)) {
         const bool viewCar = open && mode == static_cast<int>(Mode::ViewCar);
         Shared::RenderLabel(viewCar ? "LEAVE VIEW CAR" : "AUCTION NOT LOADED");
-        ImGui::EndTabItem();
         return;
     }
 
@@ -193,6 +192,4 @@ void Auction::RenderTab() {
     if (ImGui::Button("Unlock All Cars")) {
         UnlockAllAuctionCars();
     }
-
-    ImGui::EndTabItem();
 }

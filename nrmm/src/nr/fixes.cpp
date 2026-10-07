@@ -118,6 +118,4 @@ void Fixes::RenderTab() {
     ImGui::Checkbox("Chassis mismatch", &enabled);
     ImGui::EndDisabled();
     ImGui::SetItemTooltip("Some cars have wrong Chassis type probably because of typo");
-
-    ImGui::EndTabItem();
 }

@@ -153,8 +153,9 @@ void Logger::Log(const std::wstring& message, Color color) {
 void Logger::Render() {
     if (!visible.load(std::memory_order_relaxed)) return;
 
+    ImGui::SetNextWindowPos(kWindowPos, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(640.0f, 360.0f), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Debug Console", nullptr, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse)) {
+    if (ImGui::Begin(kWindowName, nullptr, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse)) {
         if (ImGui::Button("Clear")) {
             Clear();
         }

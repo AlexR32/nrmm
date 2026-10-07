@@ -432,7 +432,6 @@ void Garage::RenderTab() {
             if (ImGui::SmallButton("Refresh")) {
                 LoadModelOptions(true);
             }
-            ImGui::EndTabItem();
             return;
         }
 
@@ -463,6 +462,4 @@ void Garage::RenderTab() {
 
         RenderOverrides();
     }
-
-    ImGui::EndTabItem();
 }

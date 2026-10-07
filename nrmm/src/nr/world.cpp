@@ -706,7 +706,6 @@ void World::RenderTab() {
 
     if (!trafficAvailable || !sceneAvailable) {
         Shared::RenderLabel("NOT IN OPEN WORLD");
-        ImGui::EndTabItem();
         return;
     };
 
@@ -875,6 +874,4 @@ void World::RenderTab() {
             RequestDestinations();
         }
     }
-
-    ImGui::EndTabItem();
 }

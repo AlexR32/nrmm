@@ -423,6 +423,4 @@ void Player::RenderTab() {
     if (ImGui::Button("Force Save Game")) {
         ForceSaveGame();
     }
-
-    ImGui::EndTabItem();
 }

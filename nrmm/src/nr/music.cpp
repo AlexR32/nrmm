@@ -934,7 +934,6 @@ void Music::RenderTab() {
 
     if (snapshot.empty()) {
         ImGui::TextWrapped("Drop .wav, .mp3 or .ogg files into the \"music\" folder");
-        ImGui::EndTabItem();
         return;
     }
 
@@ -981,6 +980,4 @@ void Music::RenderTab() {
     } else if (isPlaying) {
         ImGui::Text("Now playing: %s%s", CurrentName().c_str(), isPaused ? " (paused)" : "");
     }
-
-    ImGui::EndTabItem();
 }

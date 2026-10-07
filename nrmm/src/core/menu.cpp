@@ -121,6 +121,7 @@ void Menu::InitStyle() {
 
     // Properties
     style.WindowTitleAlign = ImVec2(0.0f, 0.5f);
+    style.SelectableTextAlign = ImVec2(0.0f, 0.5f);
 
     style.ChildRounding = 0;
     style.FrameRounding = 0;
@@ -196,27 +197,56 @@ void Menu::InitStyle() {
 }
 
 void Menu::RenderMainWindow() {
-    ImGui::SetNextWindowSizeConstraints(ImVec2(270.0f, 0.0f), ImVec2(FLT_MAX, FLT_MAX));
-    if (ImGui::Begin("NIGHT RUNNERS MOD MENU", 0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings)) {
-        if (ImGui::BeginTabBar("main_tab_bar")) {
-            RenderSettingsTab();
-            Player::RenderTab();
-            CurrentCar::RenderTab();
-            World::RenderTab();
-            Garage::RenderTab();
-            Auction::RenderTab();
-            Music::RenderTab();
-            Fixes::RenderTab();
+    struct TabEntry {
+        const char* label;
+        void (*render)();
+    };
+    const TabEntry tabs[] = {
+        {"Settings", RenderSettingsTab},
+        {"Player", Player::RenderTab},
+        {"Current Car", CurrentCar::RenderTab},
+        {"World", World::RenderTab},
+        {"Garage", Garage::RenderTab},
+        {"Auction", Auction::RenderTab},
+        {"Music", Music::RenderTab},
+        {"Fixes", Fixes::RenderTab},
+    };
+    const int tabCount = IM_ARRAYSIZE(tabs);
+    if (selectedTab < 0 || selectedTab >= tabCount) selectedTab = 0;
 
-            ImGui::EndTabBar();
+    ImGui::SetNextWindowSizeConstraints(ImVec2(kWidth, 0.0f), ImVec2(kWidth, FLT_MAX));
+    if (ImGui::Begin(kWindowName, 0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings)) {
+        float sidebarWidth = 0.0f;
+        for (int i = 0; i < tabCount; ++i) {
+            sidebarWidth = ImMax(sidebarWidth, ImGui::CalcTextSize(tabs[i].label).x);
+        }
+        sidebarWidth += ImGui::GetStyle().CellPadding.x * 2.0f;
+
+        if (ImGui::BeginTable("menu_layout", 2, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_BordersInnerV)) {
+            ImGui::TableSetupColumn("nav", ImGuiTableColumnFlags_WidthFixed, sidebarWidth);
+            ImGui::TableSetupColumn("content", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableNextRow();
+
+            ImGui::TableSetColumnIndex(0);
+            for (int i = 0; i < tabCount; ++i) {
+                const ImVec2 size(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
+                if (ImGui::Selectable(tabs[i].label, selectedTab == i, 0, size)) {
+                    selectedTab = i;
+                }
+            }
+
+            ImGui::TableSetColumnIndex(1);
+            ImGui::PushID(selectedTab);
+            tabs[selectedTab].render();
+            ImGui::PopID();
+
+            ImGui::EndTable();
         }
     }
     ImGui::End();
 }
 
 void Menu::RenderSettingsTab() {
-    if (!ImGui::BeginTabItem("Settings")) return;
-
     bool blockKeyboard = Config::BlockKeyboard();
     if (ImGui::Checkbox("Block Keyboard", &blockKeyboard)) {
         Config::SetBlockKeyboard(blockKeyboard);
@@ -234,8 +264,6 @@ void Menu::RenderSettingsTab() {
 
     RenderKeybind("Menu Toggle", Config::ToggleKey(), 1);
     RenderKeybind("Unload DLL", Config::UnloadKey(), 2);
-
-    ImGui::EndTabItem();
 }
 
 void Menu::Render() {

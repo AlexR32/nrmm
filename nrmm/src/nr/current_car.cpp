@@ -395,7 +395,6 @@ void CurrentCar::RenderTab() {
 
     if (!carLoaded) {
         Shared::RenderLabel("CAR NOT LOADED");
-        ImGui::EndTabItem();
         return;
     }
 
@@ -618,6 +617,4 @@ void CurrentCar::RenderTab() {
             RandomizeNumberPlate();
         }
     }
-
-    ImGui::EndTabItem();
 }
