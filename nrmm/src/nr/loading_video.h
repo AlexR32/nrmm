@@ -59,11 +59,16 @@ private:
     // Folder next to the DLL that holds the user's video files
     static std::wstring FolderPath();
 
-    // Rebuilds the file list. Filesystem only, so it is safe on the render thread
+    // Rebuilds the file list. Filesystem only, so it is safe on any thread
     static void Reload();
 
+    // Loads the file list once, on whichever thread needs it first. Populating
+    // it must not depend on the tab being open, because Pump() runs from the
+    // start of the game
+    static void EnsureLoaded();
+
     // Publishes the picked file to Pump() and remembers it in the config
-    static void Select(int index, const std::string& path);
+    static void Select(const std::string& path);
 
     // Random pick from the current file list, empty when there is none
     static std::string PickRandom();
@@ -95,10 +100,7 @@ private:
     static std::vector<File> files;
     static std::atomic_bool listLoaded;
 
-    // Render-thread selection
-    static int selectedIndex;
-
-    // Selected file path, published to the script thread under pathMutex
+    // Selected file path, published to Pump() under pathMutex
     static std::mutex pathMutex;
     static std::string selectedPath;
 

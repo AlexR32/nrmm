@@ -15,7 +15,6 @@ Shared::Status LoadingVideo::status("LoadingVideo");
 std::mutex LoadingVideo::listMutex;
 std::vector<LoadingVideo::File> LoadingVideo::files;
 std::atomic_bool LoadingVideo::listLoaded{ false };
-int LoadingVideo::selectedIndex = 0;
 std::mutex LoadingVideo::pathMutex;
 std::string LoadingVideo::selectedPath;
 Il2CppObject* LoadingVideo::dashboard = nullptr;
@@ -151,10 +150,9 @@ void LoadingVideo::Reload() {
     if (index < 0 && !snapshot.empty()) index = 0;
 
     if (index >= 0) {
-        Select(index, snapshot[index].path);
-        selectedIndex = index;
+        std::lock_guard<std::mutex> lock(pathMutex);
+        selectedPath = snapshot[index].path;
     } else {
-        selectedIndex = 0;
         std::lock_guard<std::mutex> lock(pathMutex);
         selectedPath.clear();
     }
@@ -162,8 +160,12 @@ void LoadingVideo::Reload() {
     status.Set(count == 0 ? "No videos in the videos folder" : "Found " + std::to_string(count) + " video(s)");
 }
 
-void LoadingVideo::Select(int index, const std::string& path) {
-    selectedIndex = index;
+void LoadingVideo::EnsureLoaded() {
+    if (listLoaded.load(std::memory_order_acquire)) return;
+    Reload();
+}
+
+void LoadingVideo::Select(const std::string& path) {
     std::lock_guard<std::mutex> lock(pathMutex);
     selectedPath = path;
 }
@@ -286,6 +288,11 @@ void LoadingVideo::Pump() {
     Il2Cpp::ThreadAttach();
     if (shutDown) return;
 
+    // Populate the file list and the default selection regardless of whether
+    // the tab has ever been opened, so the override works from the first
+    // loading screen
+    EnsureLoaded();
+
     if (!Config::LoadingVideo()) {
         if (overrideApplied) {
             Restore();
@@ -347,9 +354,14 @@ void LoadingVideo::RenderTab() {
     ImGui::SameLine();
 
     std::vector<File> snapshot;
+    std::string current;
     {
         std::lock_guard<std::mutex> lock(listMutex);
         snapshot = files;
+    }
+    {
+        std::lock_guard<std::mutex> lock(pathMutex);
+        current = selectedPath;
     }
     ImGui::TextDisabled("%d video(s)", static_cast<int>(snapshot.size()));
 
@@ -360,7 +372,13 @@ void LoadingVideo::RenderTab() {
         return;
     }
 
-    if (selectedIndex < 0 || selectedIndex >= static_cast<int>(snapshot.size())) selectedIndex = 0;
+    int selectedIndex = 0;
+    for (int i = 0; i < static_cast<int>(snapshot.size()); ++i) {
+        if (snapshot[i].path == current) {
+            selectedIndex = i;
+            break;
+        }
+    }
 
     ImGui::SetNextItemWidth(220.0f);
     ImGui::BeginDisabled(random);
@@ -369,7 +387,7 @@ void LoadingVideo::RenderTab() {
         for (int i = 0; i < static_cast<int>(snapshot.size()); ++i) {
             const bool selected = (i == selectedIndex);
             if (ImGui::Selectable(snapshot[i].name.c_str(), selected)) {
-                Select(i, snapshot[i].path);
+                Select(snapshot[i].path);
                 Config::SetLoadingVideoFile(snapshot[i].path);
             }
             if (selected) ImGui::SetItemDefaultFocus();
