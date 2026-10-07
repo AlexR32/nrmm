@@ -59,6 +59,13 @@ public:
     static Il2CppObject* Invoke(const MethodInfo* method, void* obj, void** params, Il2CppException** outExc = nullptr);
     static std::string GetExceptionText(Il2CppException* exception);
 
+    // GC handles. A raw Il2CppObject* held by the mod across frames is not a GC
+    // root, so a managed object with no managed referrer can be collected while
+    // it is still in use. Root it with a handle and free the handle when done
+    static uint32_t GcHandleNew(Il2CppObject* object);
+    static Il2CppObject* GcHandleGetTarget(uint32_t handle);
+    static void GcHandleFree(uint32_t handle);
+
     // Fields
     static FieldInfo* FindField(Il2CppClass* klass, const char* fieldName);
     static Il2CppClass* ObjectClass(Il2CppObject* object);

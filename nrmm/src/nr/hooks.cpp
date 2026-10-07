@@ -8,6 +8,7 @@
 #include "world.h"
 #include "current_car.h"
 #include "fixes.h"
+#include "music.h"
 #include "shared.h"
 #include "backends/d3d11.h"
 #include "il2cpp/il2cpp.h"
@@ -36,8 +37,15 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
 
     // Once the game starts quitting, stop touching managed state entirely:
     // Unity is tearing the runtime down and invoking into it here is what makes
-    // a graceful quit hang
-    if (!active.load(std::memory_order_acquire) || D3D11Hook::shuttingDown.load(std::memory_order_acquire)) {
+    // a graceful quit hang. The last thing done before that is releasing the
+    // music player, which has to happen on this script thread
+    if (D3D11Hook::shuttingDown.load(std::memory_order_acquire)) {
+        Music::Shutdown();
+        if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
+        return;
+    }
+
+    if (!active.load(std::memory_order_acquire)) {
         if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
         return;
     }
@@ -62,6 +70,8 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
     Auction::RefreshSnapshot();
 
     Garage::PumpSpawn();
+
+    Music::Pump();
 
     if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
 }

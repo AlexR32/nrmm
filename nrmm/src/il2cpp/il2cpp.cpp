@@ -335,6 +335,22 @@ std::string Il2Cpp::GetExceptionText(Il2CppException* exception) {
     return StringToUtf8(reinterpret_cast<Il2CppString*>(message));
 }
 
+// GC handles
+
+uint32_t Il2Cpp::GcHandleNew(Il2CppObject* object) {
+    if (!object || !il2cpp_gchandle_new) return 0;
+    return il2cpp_gchandle_new(object, false);
+}
+
+Il2CppObject* Il2Cpp::GcHandleGetTarget(uint32_t handle) {
+    if (!handle || !il2cpp_gchandle_get_target) return nullptr;
+    return il2cpp_gchandle_get_target(handle);
+}
+
+void Il2Cpp::GcHandleFree(uint32_t handle) {
+    if (handle && il2cpp_gchandle_free) il2cpp_gchandle_free(handle);
+}
+
 // Fields
 
 FieldInfo* Il2Cpp::FindField(Il2CppClass* klass, const char* fieldName) {

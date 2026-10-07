@@ -13,6 +13,7 @@
 #include "nr/world.h"
 #include "nr/current_car.h"
 #include "nr/fixes.h"
+#include "nr/music.h"
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -200,11 +201,12 @@ void Menu::RenderMainWindow() {
         if (ImGui::BeginTabBar("main_tab_bar")) {
             RenderSettingsTab();
             Player::RenderTab();
-            World::RenderTab();
             CurrentCar::RenderTab();
-            Fixes::RenderTab();
+            World::RenderTab();
             Garage::RenderTab();
             Auction::RenderTab();
+            Music::RenderTab();
+            Fixes::RenderTab();
 
             ImGui::EndTabBar();
         }
