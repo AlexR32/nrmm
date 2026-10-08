@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.6 — October 8, 2026
+
+### Added
+- **Loading video override** (Loading Video tab): replace the loading screen's intro video with your own file dropped into a `videos` folder next to `nrmm.dll`, with a toggle to pick a random clip each load just like the game does. The loading screen's clip and song text are hidden while your clip plays.
+- **Disable meetspot restrictions** toggle on the Player tab: lets your car pass the owning crew's requirements (power, drivetrain, tires, origin, spec) when entering a meetspot.
+
+### Changed
+- **Menu tabs** now sit on the left side of the window.
+- Release version now lives in the DLL version resource; the release workflow reads it from there.
+
+---
+
 ## 1.0.5 — October 7, 2026
 
 ### Added
