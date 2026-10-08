@@ -1,46 +1,45 @@
 # NRMM
 
-**NRMM** (Night-Runners Mod Menu) is an in-process mod menu for the Unity game *NIGHT-RUNNERS*. It is a native x64 DLL that hooks the game's IL2CPP runtime and its Direct3D 11 swap chain, then draws an ImGui overlay on top of the running game. Every game action is marshalled onto the game's own script thread, so the mod never touches managed state from the render thread
-
-Injected at runtime, it exposes a tabbed menu for editing the player, the world, the current car, garages and the auction house, plus a set of utility fixes
-
-A companion **bootstrapper** (`bootstrapper.exe`) launches the mod: it injects the DLL into the running game and can decrypt or re-encrypt the game save
+**NRMM** (Night-Runners Mod Menu) is a mod menu for the game *NIGHT-RUNNERS PRIVATE ALPHA*.
 
 ## Features
 
-The menu is opened with `INS` and has the following tabs
-
 - **Settings**
-  - Unhook the DLL cleanly at runtime
+  - Block keyboard input when menu is open
+  - Unload the DLL cleanly at runtime
   - Show or hide the debug console
+  - Change menu keybinds
 - **Player**
   - Set the player race crew type
-  - Toggle traffic
-  - Meetspot owner editor
   - End the current night
   - Unlock all parts
-- **World**
-  - Toggle traffic
-  - Attack crew-owned meetspots
-  - Fast travel to discovered trucks
-  - Garage list: go to a garage, buy a garage, or mark one as owned
+  - Meetspot owner editor
+  - Disable crew restrictions
+  - Money, Meetspot rep, night rep, debt, bettng money editor
+  - Force save game
 - **Current Car**
   - Set drivetrain, induction type and fuel type
   - Freeze engine health, fuel, water temperature, oil temperature, brake temperature and NOS
   - Change the oil
+  - Clean car from dirt
   - Save the edited car stats
-- **Fixes**
-  - Separate tab to show what game fixes this mod menu has
+  - Number plate editor
+- **World**
+  - Toggle traffic
+  - Trigger meetspot attack
+  - Fast travel to trucks, garages, meetspots, etc
+  - Enter garage, meetspot, car storage from any part of the map
+  - Buy, add, remove garages
 - **Garage**
-  - Spawn a car from the full model list and save it to a house
+  - Spawn a car from the model list and save it to a car storage
   - Spawn overrides: engine, fuel, mileage and dirt, gearbox, paint colour, and stock-only
 - **Auction**
   - Refresh the auction listing
-  - Unlock every chassis for sale
+  - Unlock every available car for sale
+- **Fixes**
+  - Separate tab to show what game fixes this mod menu has
 
-A status line under each tab reports the result of the last action and is mirrored to the debug console
-
-The **bootstrapper** (`bootstrapper.exe`) is a separate launcher:
+The **bootstrapper**:
 
 - **Load Mod Menu** — injects the mod DLL into *NIGHT-RUNNERS PRIVATE ALPHA*. It prefers `nrmm-debug.dll` when present next to the bootstrapper and otherwise uses `nrmm.dll`, and it skips the injection when the DLL is already loaded
 - **Decrypt Game Save** — reads the game's `SaveFile.es3` and writes the decoded `SaveFile.json` next to the bootstrapper
@@ -61,16 +60,17 @@ Controls and behaviour:
 | `INS`      | Toggle the menu   |
 | `DELETE`   | Unload the DLL    |
 
-The **Settings** tab is persisted to `nrmm.ini` next to the DLL: the block-keyboard and debug-console toggles plus both keybinds are restored on the next injection. Both keybinds are rebindable from the **Settings** tab: click the keybind button, then press the key you want (`ESC` cancels).
+Both keybinds are rebindable from the **Settings** tab: click the keybind button, then press the key you want (`ESC` cancels)
 
 ### Bootstrapper and save files
 
 The game stores its save under `%USERPROFILE%\AppData\LocalLow\PLANET JEM SOFTWARE\NIGHT-RUNNERS PRIVATE ALPHA`:
 
-- **Decrypt Game Save** reads `SaveFile.es3` from the game's save folder and writes the decoded JSON to `SaveFile.json` **next to the bootstrapper** (the folder with `bootstrapper.exe` and `nrmm.dll`)
+- **Decrypt Game Save** reads `SaveFile.es3` from the game's save folder and writes the decoded JSON to `SaveFile.json` **next to the bootstrapper**
 - **Encrypt Game Save** reads `SaveFile.json` from next to the bootstrapper and writes the encrypted `SaveFile.es3` back into the game's save folder so the game can load it
 
-Close the game before re-encrypting, otherwise the file is locked. The save format is PBKDF2-HMAC-SHA1 + AES-128-CBC
+Close the game before re-encrypting, otherwise the file is locked.  
+The save format is PBKDF2-HMAC-SHA1 + AES-128-CBC
 
 ## Building
 
@@ -85,9 +85,9 @@ Close the game before re-encrypting, otherwise the file is locked. The save form
 1. Open `nrmm.slnx`
 2. Select the `Release` configuration and the `x64` platform
 3. Build the solution (`Ctrl+Shift+B`)
-4. The outputs are written to `bin\nrmm.dll` (and `bin\nrmm.pdb`) and `bin\bootstrapper.exe` (and `bin\bootstrapper.pdb`)
+4. The outputs are written to `bin` folder
 
-A `Debug` build is also available and produces `bin\nrmm-debug.dll`
+A `Debug` build is also available and produces files with `-debug` prefix
 
 ### From the command line
 
@@ -106,29 +106,29 @@ msbuild bootstrapper\bootstrapper.vcxproj /m /p:Configuration=Release /p:Platfor
 
 Both projects are precompiled-header based where relevant and the third-party dependencies (ImGui and MinHook) are vendored under `nrmm/libs/`, so no package restore is needed
 
-The bootstrapper's version resource is kept in sync with the top-level `.version` file by `scripts/update_bootstrapper_version.ps1`, which runs automatically before the bootstrapper build (and can be run by hand: `pwsh ./scripts/update_bootstrapper_version.ps1`)
+`nrmm.dll` carries the release version resource (`nrmm\nrmm.rc`), which is what the build and release workflows read to name artifacts and tags. The bootstrapper has its own independent version resource (`bootstrapper\bootstrapper.rc`)
 
 ## Project layout
 
 ```
 nrmm.slnx              Solution (mod menu + bootstrapper)
-.version               Version tag for the release workflow
 nrmm/                  Mod menu (native x64 DLL)
   nrmm.vcxproj         Visual Studio project (x64, Debug/Release)
+  nrmm.rc              Version info
   src/
     dllmain.cpp        DllMain and the main worker thread
     globals.h          Shared globals
     pch.h/.cpp         Precompiled header
     backends/          Direct3D 11 Present hook + ImGui backend
-    core/              Menu, overlay drawing, logger, cursor
+    core/              Menu, overlay drawing, logger, input block
     il2cpp/            IL2CPP runtime wrapper, exports and bindings
     nr/                Game features per tab
   libs/
     imgui/             Dear ImGui
     minhook/           MinHook
-bootstrapper/          Launcher, injector and save tool (native x64 EXE)
+bootstrapper/          Launcher, injector and save tool
   bootstrapper.vcxproj
-  bootstrapper.rc      Icon, version info and identity
+  bootstrapper.rc      Icon and version info
   res/                 Icons
   src/
     main.cpp           Entry point
@@ -137,19 +137,12 @@ bootstrapper/          Launcher, injector and save tool (native x64 EXE)
     save_crypto.*      Save encrypt/decrypt (PBKDF2 + AES + gzip)
     inflate.*          Minimal gzip/DEFLATE decoder
     theme.*            Light/dark palettes and Windows theme detection
-scripts/               Build helpers (version sync)
 .github/workflows/     CI (build and release)
 ```
 
 ## Versioning and releases
 
-The release version lives in the top-level `.version` file. Change it to bump the release. On a push to `main`, the release workflow reads the file, compares the resulting `v<version>` tag against the existing tags and, when it is new, builds both the Release DLL and the bootstrapper, packages `nrmm-<version>.zip` (containing `nrmm.dll` and `bootstrapper.exe`), and publishes a GitHub release with an auto-generated changelog (the `nrmm.dll` is also attached on its own). Pushing a version that already has a tag does not create a duplicate release
-
-## Notes
-
-- Only the 64-bit build is supported
-- The mod relies on IL2CPP exports and game field/method names, so it is tied to a specific game build. Memory addresses and names may change between updates
-- This project is intended for personal/offline use. Use it at your own risk
+The release version lives in the `nrmm.dll` version resource (`nrmm\nrmm.rc`). Bump the `VERSION`/`VERSION_STRING` defines at the top of that file to change the release. On a push to `main`, the release workflow builds `nrmm.dll`, reads its version, compares the resulting `v<version>` tag against the existing tags and, when it is new, builds the bootstrapper, packages `nrmm-<version>.zip` (containing `nrmm.dll` and `bootstrapper.exe`), and publishes a GitHub release with an auto-generated changelog
 
 ## License
 
