@@ -77,7 +77,6 @@ private:
     // True on the frame a new loading screen video starts, mirroring how the
     // game begins RCC_DashboardInputs.loadingScreen_playVideo
     static bool DetectNewLoad(Il2CppObject* target);
-
     static Il2CppObject* ResolveDashboard();
     static Il2CppObject* ResolvePlayer();
 
@@ -128,8 +127,7 @@ private:
     static bool shutDown;
 
     // Random mode: the file chosen for the current loading screen, and the
-    // signals used to detect that a new one has started
+    // combined "a load is running" state used to detect new loads
     static std::string chosenPath;
-    static bool prevLoadingFlag;
-    static Il2CppObject* prevClip;
+    static bool prevLoadActive;
 };

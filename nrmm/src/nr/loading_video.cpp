@@ -27,8 +27,7 @@ std::string LoadingVideo::appliedUri;
 bool LoadingVideo::overrideApplied = false;
 bool LoadingVideo::shutDown = false;
 std::string LoadingVideo::chosenPath;
-bool LoadingVideo::prevLoadingFlag = false;
-Il2CppObject* LoadingVideo::prevClip = nullptr;
+bool LoadingVideo::prevLoadActive = false;
 
 // Path and naming helpers
 
@@ -185,10 +184,11 @@ std::string LoadingVideo::PickRandom() {
     return files[dist(rng)].path;
 }
 
-// The game sets RCC_DashboardInputs.loading_loadingVideo while it loads the
-// addressable clip and clears it once the clip is set, so a rising edge marks a
-// new loading screen. A new clip replacing the old one is the fallback signal
-// for loads fast enough to finish in a single frame
+// The game raises RCC_DashboardInputs.loading_loadingVideo while it loads the
+// addressable clip and sets the player's clip once it is ready. Both mark the
+// same load, so they are folded into one "a load is running" state and only its
+// rising edge counts; otherwise the flag and the clip change would each fire for
+// the same loading screen
 bool LoadingVideo::DetectNewLoad(Il2CppObject* target) {
     bool loadingFlag = false;
     if (dashboard) Il2Cpp::GetInstanceFieldValue(dashboard, "loading_loadingVideo", loadingFlag);
@@ -197,9 +197,9 @@ bool LoadingVideo::DetectNewLoad(Il2CppObject* target) {
     VideoPlayerApi& api = Api();
     if (api.getClip && target) clip = Il2Cpp::Invoke(api.getClip, target, nullptr);
 
-    const bool newLoad = (loadingFlag && !prevLoadingFlag) || (clip && clip != prevClip);
-    prevLoadingFlag = loadingFlag;
-    prevClip = clip;
+    const bool loadActive = loadingFlag || clip != nullptr;
+    const bool newLoad = loadActive && !prevLoadActive;
+    prevLoadActive = loadActive;
     return newLoad;
 }
 
