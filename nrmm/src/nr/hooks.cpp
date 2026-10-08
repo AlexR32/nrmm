@@ -16,12 +16,46 @@
 #include "il2cpp/main_thread.h"
 #include "core/logger.h"
 
+// Hook state
+
 Hooks::GodConstantUpdateFn Hooks::originalGodConstantUpdate = nullptr;
-void* Hooks::godConstantUpdateTarget = nullptr;
-std::atomic_bool Hooks::installed{ false };
-std::atomic_bool Hooks::active{ false };
+void* Hooks::updateHookTarget = nullptr;
+std::atomic_bool Hooks::updateHookInstalled{ false };
+
+Hooks::DoesCarPassRestrictionFn Hooks::originalDoesCarPassRestriction = nullptr;
+void* Hooks::restrictionHookTarget = nullptr;
+std::atomic_bool Hooks::restrictionHookInstalled{ false };
+
+Hooks::DoesPlayerMeetCrewSpecFn Hooks::originalDoesPlayerMeetCrewSpec = nullptr;
+void* Hooks::crewSpecHookTarget = nullptr;
+std::atomic_bool Hooks::crewSpecHookInstalled{ false };
+
 std::atomic_int Hooks::inFlight{ 0 };
 
+// MinHook plumbing shared by every detour
+
+bool Hooks::EnableDetour(void* target, void* detour, void** original, const char* name) {
+    if (MH_CreateHook(target, detour, original) != MH_OK) {
+        Logger::Logf("[Hooks] Failed to create the {} hook", name);
+        return false;
+    }
+
+    if (MH_EnableHook(target) != MH_OK) {
+        Logger::Logf("[Hooks] Failed to enable the {} hook", name);
+        MH_RemoveHook(target);
+        *original = nullptr;
+        return false;
+    }
+
+    Logger::Logf("[Hooks] {} hooked", name);
+    return true;
+}
+
+void Hooks::DisableDetour(void* target) {
+    if (!target) return;
+    MH_DisableHook(target);
+    MH_RemoveHook(target);
+}
 
 void* Hooks::GetMethodPointer(const MethodInfo* method) {
     if (!method) return nullptr;
@@ -30,6 +64,8 @@ void* Hooks::GetMethodPointer(const MethodInfo* method) {
     memcpy(&pointer, method, sizeof(pointer));
     return pointer;
 }
+
+// GodConstant.Update: the script-thread pump
 
 void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodInfo* method) {
     // Count in first so Remove cannot free the trampoline out from under an
@@ -47,7 +83,7 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
         return;
     }
 
-    if (!active.load(std::memory_order_acquire)) {
+    if (!updateHookInstalled.load(std::memory_order_acquire)) {
         if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
         return;
     }
@@ -78,58 +114,120 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
     if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
 }
 
-bool Hooks::Install() {
-    if (installed.load(std::memory_order_acquire)) return true;
+void Hooks::EnsureUpdateHook() {
+    if (updateHookInstalled.load(std::memory_order_acquire)) return;
 
     Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
-    if (!godClass) return false;
+    if (!godClass) return;
 
-    const MethodInfo* update = Il2Cpp::GetMethod(godClass, "Update", 0);
-    if (!update) return false;
+    const MethodInfo* method = Il2Cpp::GetMethod(godClass, "Update", 0);
+    void* target = GetMethodPointer(method);
+    if (!target) return;
 
-    void* target = GetMethodPointer(update);
-    if (!target) return false;
-
-    if (MH_CreateHook(target, reinterpret_cast<void*>(&HookedGodConstantUpdate), reinterpret_cast<void**>(&originalGodConstantUpdate)) != MH_OK) {
-        Logger::Log("[Hooks] Failed to create the GodConstant.Update hook");
-        return false;
+    // A MinHook failure here is not transient, so stop retrying every tick
+    if (!EnableDetour(target, reinterpret_cast<void*>(&HookedGodConstantUpdate), reinterpret_cast<void**>(&originalGodConstantUpdate), "GodConstant.Update")) {
+        updateHookInstalled.store(true, std::memory_order_release);
+        return;
     }
 
-    if (MH_EnableHook(target) != MH_OK) {
-        Logger::Log("[Hooks] Failed to enable the GodConstant.Update hook");
-        MH_RemoveHook(target);
-        originalGodConstantUpdate = nullptr;
-        return false;
-    }
-
-    godConstantUpdateTarget = target;
-    active.store(true, std::memory_order_release);
-    installed.store(true, std::memory_order_release);
-    Logger::Log("[Hooks] GodConstant.Update hooked, pumping on the script thread");
-    return true;
+    updateHookTarget = target;
+    updateHookInstalled.store(true, std::memory_order_release);
 }
 
+// GodConstant.doesCarPassRestriction: the meetspot-restriction bypass
+
+bool __fastcall Hooks::HookedDoesCarPassRestriction(Il2CppObject* self, int32_t targetRestrict, Il2CppObject* targetCar, const MethodInfo* method) {
+    // The toggle lives on the Player tab; when set the player's car passes every
+    // crew restriction, so meetSpot.startProcess never marks it as failing
+    if (Player::disableMeetspotRestrictions.load(std::memory_order_relaxed)) return true;
+    if (originalDoesCarPassRestriction) return originalDoesCarPassRestriction(self, targetRestrict, targetCar, method);
+    return false;
+}
+
+void Hooks::EnsureRestrictionHook() {
+    if (restrictionHookInstalled.load(std::memory_order_acquire)) return;
+
+    Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
+    if (!godClass) return;
+
+    const MethodInfo* method = Il2Cpp::GetMethod(godClass, "doesCarPassRestriction", 2);
+    void* target = GetMethodPointer(method);
+    if (!target) return;
+
+    // A MinHook failure here is not transient, so stop retrying every tick
+    if (!EnableDetour(target, reinterpret_cast<void*>(&HookedDoesCarPassRestriction), reinterpret_cast<void**>(&originalDoesCarPassRestriction), "GodConstant.doesCarPassRestriction")) {
+        restrictionHookInstalled.store(true, std::memory_order_release);
+        return;
+    }
+
+    restrictionHookTarget = target;
+    restrictionHookInstalled.store(true, std::memory_order_release);
+}
+
+// GodConstant.DoesPlayerMeetCrewSpec: the meetspot crew-spec bypass
+
+bool __fastcall Hooks::HookedDoesPlayerMeetCrewSpec(Il2CppObject* self, float playerHP, float playerHandling, float playerBrake, int32_t targetCrew, float originSpecFloor, const MethodInfo* method) {
+    // Same meetspot toggle: pretend the player's car always matches the crew spec
+    if (Player::disableMeetspotRestrictions.load(std::memory_order_relaxed)) return true;
+    if (originalDoesPlayerMeetCrewSpec) return originalDoesPlayerMeetCrewSpec(self, playerHP, playerHandling, playerBrake, targetCrew, originSpecFloor, method);
+    return false;
+}
+
+void Hooks::EnsureCrewSpecHook() {
+    if (crewSpecHookInstalled.load(std::memory_order_acquire)) return;
+
+    Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
+    if (!godClass) return;
+
+    const MethodInfo* method = Il2Cpp::GetMethod(godClass, "DoesPlayerMeetCrewSpec", 5);
+    void* target = GetMethodPointer(method);
+    if (!target) return;
+
+    // A MinHook failure here is not transient, so stop retrying every tick
+    if (!EnableDetour(target, reinterpret_cast<void*>(&HookedDoesPlayerMeetCrewSpec), reinterpret_cast<void**>(&originalDoesPlayerMeetCrewSpec), "GodConstant.DoesPlayerMeetCrewSpec")) {
+        crewSpecHookInstalled.store(true, std::memory_order_release);
+        return;
+    }
+
+    crewSpecHookTarget = target;
+    crewSpecHookInstalled.store(true, std::memory_order_release);
+}
+
+// Lifecycle
+
 void Hooks::EnsureInstalled() {
-    if (!installed.load(std::memory_order_acquire)) Install();
+    EnsureUpdateHook();
+    EnsureRestrictionHook();
+    EnsureCrewSpecHook();
 }
 
 void Hooks::Remove() {
-    if (!installed.exchange(false, std::memory_order_acq_rel)) return;
+    updateHookInstalled.store(false, std::memory_order_release);
 
-    active.store(false, std::memory_order_release);
+    // Tear the pump down first: disable it so no new detour starts, wait for an
+    // in-flight one to fall through (bounded so a wedge during teardown cannot
+    // hang), then remove it
+    if (updateHookTarget) {
+        MH_DisableHook(updateHookTarget);
 
-    if (godConstantUpdateTarget) MH_DisableHook(godConstantUpdateTarget);
+        const std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+        while (inFlight.load(std::memory_order_acquire) != 0 && std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
 
-    // Wait for a detour already running on the script thread to fall through.
-    // Bounded so a detour wedged in game code during teardown cannot hang.
-    const std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
-    while (inFlight.load(std::memory_order_acquire) != 0) {
-        if (std::chrono::steady_clock::now() >= deadline) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        MH_RemoveHook(updateHookTarget);
+        updateHookTarget = nullptr;
+        originalGodConstantUpdate = nullptr;
     }
 
-    if (godConstantUpdateTarget) MH_RemoveHook(godConstantUpdateTarget);
+    // The meetspot hooks are installed independently of the pump
+    DisableDetour(restrictionHookTarget);
+    restrictionHookTarget = nullptr;
+    originalDoesCarPassRestriction = nullptr;
+    restrictionHookInstalled.store(false, std::memory_order_release);
 
-    godConstantUpdateTarget = nullptr;
-    originalGodConstantUpdate = nullptr;
+    DisableDetour(crewSpecHookTarget);
+    crewSpecHookTarget = nullptr;
+    originalDoesPlayerMeetCrewSpec = nullptr;
+    crewSpecHookInstalled.store(false, std::memory_order_release);
 }

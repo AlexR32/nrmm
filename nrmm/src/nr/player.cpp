@@ -12,6 +12,7 @@ Player::Snapshot Player::snapshot;
 int Player::ownerMeetSpotIndex = 0;
 int Player::ownerCrewIndex = 0;
 float Player::ownerStrength = 0.0f;
+std::atomic_bool Player::disableMeetspotRestrictions{ false };
 std::atomic<int> Player::loadedDataVersion{ 0 };
 std::atomic_bool Player::loadedDataValid{ false };
 std::atomic<int> Player::loadedOwnerIndex{ -1 };
@@ -363,6 +364,13 @@ void Player::RenderTab() {
     if (ImGui::Button("Load")) {
         SelectOwnerMeetspot(ownerMeetSpotIndex);
     }
+
+    bool restrictionsDisabled = disableMeetspotRestrictions.load(std::memory_order_relaxed);
+    if (ImGui::Checkbox("Disable meetspot restrictions", &restrictionsDisabled)) {
+        disableMeetspotRestrictions.store(restrictionsDisabled, std::memory_order_relaxed);
+        status.Set(restrictionsDisabled ? "Meetspot restrictions disabled" : "Meetspot restrictions enabled");
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Let your car pass the owning crew's requirements (power, drivetrain, tires, origin, spec) when entering a meetspot");
 
     ImGui::SeparatorText("Money / Reputation");
 

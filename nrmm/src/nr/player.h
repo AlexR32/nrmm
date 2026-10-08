@@ -24,6 +24,12 @@ public:
     static std::string MeetspotName(int32_t id);
     static Il2CppObject* LoadMeetspotData(int32_t id);
 
+    // Meetspot restrictions. Written by the checkbox in the "Meetspot data"
+    // section and read on the script thread by the Hooks detours for
+    // doesCarPassRestriction and DoesPlayerMeetCrewSpec; while set the player's
+    // car always passes every crew requirement
+    static std::atomic_bool disableMeetspotRestrictions;
+
 private:
     // Written by RefreshSnapshot() on the script thread, read by the render
     // thread. Each field is atomic so the widgets never race the writer
