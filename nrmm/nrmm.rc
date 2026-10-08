@@ -1,0 +1,49 @@
+#include <windows.h>
+
+LANGUAGE 9, 1
+
+
+// Version
+
+// Bump the release version here. Update both defines together: RC has no
+// stringize operator, so the numeric tuple and the display string cannot be
+// derived from one another.
+
+
+#define VERSION         1,0,6,0
+#define VERSION_STRING "1.0.6.0"
+
+
+// Version resource
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION VERSION
+ PRODUCTVERSION VERSION
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "AlexR32"
+            VALUE "FileDescription", "Night-Runners Mod Menu"
+            VALUE "FileVersion", VERSION_STRING
+            VALUE "InternalName", "nrmm.dll"
+            VALUE "OriginalFilename", "nrmm.dll"
+            VALUE "ProductName", "NRMM"
+            VALUE "ProductVersion", VERSION_STRING
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

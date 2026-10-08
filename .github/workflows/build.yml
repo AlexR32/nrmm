@@ -25,26 +25,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Read version
-        id: version
-        shell: pwsh
-        run: |
-          $version = (Get-Content .version -Raw).Trim()
-          if ($version -notmatch '^\d+\.\d+\.\d+([-+].+)?$') {
-            throw "Invalid .version '$version' (expected semver, e.g. 1.0.0)"
-          }
-          "value=$version" | Add-Content -Path $env:GITHUB_OUTPUT
-          "tag=v$version" | Add-Content -Path $env:GITHUB_OUTPUT
-
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v3
 
-      - name: Sync bootstrapper version
-        shell: pwsh
-        run: ./scripts/update_bootstrapper_version.ps1
-
       - name: Build nrmm (Release x64)
         run: msbuild nrmm\nrmm.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\
+
+      - name: Read version from nrmm.dll
+        id: version
+        shell: pwsh
+        run: |
+          $vi = (Get-Item bin\nrmm.dll).VersionInfo
+          $version = "$($vi.FileMajorPart).$($vi.FileMinorPart).$($vi.FileBuildPart)"
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid nrmm.dll version '$version'"
+          }
+          "value=$version" | Add-Content -Path $env:GITHUB_OUTPUT
 
       - name: Build bootstrapper (Release x64)
         run: msbuild bootstrapper\bootstrapper.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\

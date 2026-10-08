@@ -27,13 +27,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Read version
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Build nrmm (Release x64)
+        run: msbuild nrmm\nrmm.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\
+
+      - name: Read version from nrmm.dll
         id: version
         shell: pwsh
         run: |
-          $version = (Get-Content .version -Raw).Trim()
-          if ($version -notmatch '^\d+\.\d+\.\d+([-+].+)?$') {
-            throw "Invalid .version '$version' (expected semver, e.g. 1.0.0)"
+          $vi = (Get-Item bin\nrmm.dll).VersionInfo
+          $version = "$($vi.FileMajorPart).$($vi.FileMinorPart).$($vi.FileBuildPart)"
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid nrmm.dll version '$version'"
           }
           "value=$version" | Add-Content -Path $env:GITHUB_OUTPUT
           "tag=v$version" | Add-Content -Path $env:GITHUB_OUTPUT
@@ -52,19 +59,6 @@ jobs:
             Write-Host "Tag $env:TAG is new"
             "exists=false" | Add-Content -Path $env:GITHUB_OUTPUT
           }
-
-      - name: Setup MSBuild
-        if: steps.check.outputs.exists == 'false'
-        uses: microsoft/setup-msbuild@v3
-
-      - name: Sync bootstrapper version
-        if: steps.check.outputs.exists == 'false'
-        shell: pwsh
-        run: ./scripts/update_bootstrapper_version.ps1
-
-      - name: Build nrmm (Release x64)
-        if: steps.check.outputs.exists == 'false'
-        run: msbuild nrmm\nrmm.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\
 
       - name: Build bootstrapper (Release x64)
         if: steps.check.outputs.exists == 'false'
