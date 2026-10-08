@@ -367,7 +367,7 @@ void Player::RenderTab() {
 
     bool restrictionsDisabled = disableCrewRestrictions.load(std::memory_order_relaxed);
     if (ImGui::Checkbox("Disable crew restrictions", &restrictionsDisabled)) {
-        disableCrwRestrictions.store(restrictionsDisabled, std::memory_order_relaxed);
+        disableCrewRestrictions.store(restrictionsDisabled, std::memory_order_relaxed);
         status.Set(restrictionsDisabled ? "Crew restrictions disabled" : "Crew restrictions enabled");
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Let your car pass the owning crew's requirements (power, drivetrain, tires, origin, spec) when entering a meetspot");
