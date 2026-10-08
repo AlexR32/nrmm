@@ -134,12 +134,10 @@ void Hooks::EnsureUpdateHook() {
     updateHookInstalled.store(true, std::memory_order_release);
 }
 
-// GodConstant.doesCarPassRestriction: the meetspot-restriction bypass
+// GodConstant.doesCarPassRestriction: the crew restriction bypass
 
 bool __fastcall Hooks::HookedDoesCarPassRestriction(Il2CppObject* self, int32_t targetRestrict, Il2CppObject* targetCar, const MethodInfo* method) {
-    // The toggle lives on the Player tab; when set the player's car passes every
-    // crew restriction, so meetSpot.startProcess never marks it as failing
-    if (Player::disableMeetspotRestrictions.load(std::memory_order_relaxed)) return true;
+    if (Player::disableCrewRestrictions.load(std::memory_order_relaxed)) return true;
     if (originalDoesCarPassRestriction) return originalDoesCarPassRestriction(self, targetRestrict, targetCar, method);
     return false;
 }
@@ -167,8 +165,7 @@ void Hooks::EnsureRestrictionHook() {
 // GodConstant.DoesPlayerMeetCrewSpec: the meetspot crew-spec bypass
 
 bool __fastcall Hooks::HookedDoesPlayerMeetCrewSpec(Il2CppObject* self, float playerHP, float playerHandling, float playerBrake, int32_t targetCrew, float originSpecFloor, const MethodInfo* method) {
-    // Same meetspot toggle: pretend the player's car always matches the crew spec
-    if (Player::disableMeetspotRestrictions.load(std::memory_order_relaxed)) return true;
+    if (Player::disableCrewRestrictions.load(std::memory_order_relaxed)) return true;
     if (originalDoesPlayerMeetCrewSpec) return originalDoesPlayerMeetCrewSpec(self, playerHP, playerHandling, playerBrake, targetCrew, originSpecFloor, method);
     return false;
 }
