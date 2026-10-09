@@ -554,7 +554,9 @@ bool Il2Cpp::CurrentThreadIsMainThread() {
     const MethodInfo* byType = GetMethod(objectClass, "CurrentThreadIsMainThread", 0);
     if (!byType) return false;
 
-    return Invoke(byType, nullptr, nullptr);
+    // The method returns a bool value type, so Invoke hands back a boxed
+    // Boolean (always non-null); it must be unboxed to read the result
+    return UnboxBool(Invoke(byType, nullptr, nullptr));
 }
 
 int Il2Cpp::GetCurrentThreadId() {

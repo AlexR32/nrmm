@@ -159,9 +159,12 @@ UINT WINAPI InputBlock::hkGetRawInputBuffer(PRAWINPUT data, PUINT size, UINT hea
         BYTE* cursor = reinterpret_cast<BYTE*>(data);
         for (UINT i = 0; i < count; ++i) {
             RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(cursor);
-            NeutralizeRawInput(raw);
             if (raw->header.dwSize < sizeof(RAWINPUTHEADER)) break;
-            cursor += raw->header.dwSize;
+            NeutralizeRawInput(raw);
+            // Records are packed on 8-byte boundaries; advancing by dwSize alone
+            // desyncs the cursor for variable-length HID reports
+            const size_t stride = (static_cast<size_t>(raw->header.dwSize) + sizeof(void*) - 1) & ~(sizeof(void*) - 1);
+            cursor += stride;
         }
     }
     return count;

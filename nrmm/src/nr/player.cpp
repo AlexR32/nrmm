@@ -58,9 +58,12 @@ void Player::EndNight() {
         const MethodInfo* method = Il2Cpp::GetMethod(godClass, "nightEnd_start", 1);
         if (!method) { status.Set("nightEnd_start not found"); return; }
 
+        Il2CppObject* god = Shared::God();
+        if (!god) { status.Set("GodConstant not found"); return; }
+
         bool endedNightManually = true;
         void* args[1] = {&endedNightManually};
-        Il2Cpp::Invoke(method, Shared::God(), args);
+        Il2Cpp::Invoke(method, god, args);
 
         status.Set("Ended the night");
     });
@@ -182,6 +185,7 @@ void Player::UnlockAllParts() {
         if (!godClass) { status.Set("GodConstant not found"); return; }
 
         Il2CppObject* god = Shared::God();
+        if (!god) { status.Set("GodConstant not found"); return; }
 
         Il2Cpp::SetInstanceFieldValue(god, "player_gameRep", kUnlockGameRep);
 

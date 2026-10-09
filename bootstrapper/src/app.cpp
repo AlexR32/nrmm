@@ -130,7 +130,7 @@ bool App::Initialize(int showCommand) {
 }
 
 int App::Run() {
-    MSG message;
+    MSG message{};
     while (GetMessageW(&message, nullptr, 0, 0) > 0) {
         if (!IsDialogMessageW(hwnd_, &message)) {
             TranslateMessage(&message);

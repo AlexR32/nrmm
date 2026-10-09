@@ -338,18 +338,25 @@ bool World::TeleportCar(Il2CppObject* car, Il2CppObject* destination, bool apply
     if (!getPosition || !getRotation || !setPositionAndRotation) return false;
 
     // get_position/get_rotation return value types, so Invoke hands back a
-    // boxed Vector3/Quaternion whose payload doubles as the by-value argument.
-    // The boxes are kept alive until the move completes. When the destination's
-    // facing should not be adopted, keep the car's current rotation
+    // boxed Vector3/Quaternion. UnboxRaw points into the box's payload and the
+    // box is not a GC root, so copy the values into locals before any further
+    // managed call: an intervening Invoke could otherwise collect the box and
+    // leave the pointers dangling. When the destination's facing should not be
+    // adopted, keep the car's current rotation
     Il2CppObject* boxedPosition = Il2Cpp::Invoke(getPosition, destination, nullptr);
     Il2CppObject* boxedRotation = Il2Cpp::Invoke(getRotation, applyRotation ? destination : carTransform, nullptr);
-    void* position = Il2Cpp::UnboxRaw(boxedPosition);
-    void* rotation = Il2Cpp::UnboxRaw(boxedRotation);
-    if (!position || !rotation) return false;
+    const void* rawPosition = Il2Cpp::UnboxRaw(boxedPosition);
+    const void* rawRotation = Il2Cpp::UnboxRaw(boxedRotation);
+    if (!rawPosition || !rawRotation) return false;
+
+    float position[3];
+    float rotation[4];
+    memcpy(position, rawPosition, sizeof(position));
+    memcpy(rotation, rawRotation, sizeof(rotation));
 
     // Lift the car slightly above the resolved point so it settles onto the
     // surface instead of clipping through it (Vector3.y is the second float)
-    reinterpret_cast<float*>(position)[1] += kTeleportHeight;
+    position[1] += kTeleportHeight;
 
     Il2CppObject* rigid = Il2Cpp::GetInstanceFieldObject(car, "rigid");
     Il2CppClass* rigidClass = rigid ? Il2Cpp::ObjectClass(rigid) : nullptr;

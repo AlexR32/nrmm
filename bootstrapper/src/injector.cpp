@@ -79,9 +79,12 @@ bool Injector::Inject(DWORD processId, const std::wstring& dllPath, std::wstring
     GetExitCodeThread(thread, &exitCode);
 
     if (wait != WAIT_OBJECT_0) {
+        // The remote thread may still be running LoadLibraryW and reading the
+        // path at `remote`; freeing it here would pull the buffer out from under
+        // the live thread, so leave the remote allocation alone and only close
+        // our own handles
         error = L"Timed out while waiting for the DLL to load in the game process.";
         CloseHandle(thread);
-        VirtualFreeEx(process, remote, 0, MEM_RELEASE);
         CloseHandle(process);
         return false;
     }

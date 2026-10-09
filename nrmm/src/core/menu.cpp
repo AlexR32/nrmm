@@ -298,6 +298,14 @@ LRESULT Menu::HandleInput(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return TRUE;
     }
 
+    // Swallow the key-down of the toggle/unload keys: the matching key-up is
+    // consumed below to fire the action, so forwarding the key-down to the game
+    // would leave it seeing a press that is never released (a stuck key)
+    if ((uMsg == WM_KEYDOWN || uMsg == WM_SYSKEYDOWN) &&
+        (wParam == static_cast<WPARAM>(Config::ToggleKey()) || wParam == static_cast<WPARAM>(Config::UnloadKey()))) {
+        return TRUE;
+    }
+
     if ((uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP) && wParam == static_cast<WPARAM>(Config::ToggleKey())) {
         const bool show = !visible.load(std::memory_order_relaxed);
         visible.store(show, std::memory_order_relaxed);

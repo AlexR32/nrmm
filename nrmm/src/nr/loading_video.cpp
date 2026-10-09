@@ -186,6 +186,14 @@ void LoadingVideo::Restore() {
             void* args[1] = { empty };
             Il2Cpp::Invoke(api.setUrl, player, args);
         }
+
+        // Apply() forced looping on for our clip; the game never sets it and the
+        // VideoPlayer default is off, so restore that
+        if (api.setLoop) {
+            bool loop = false;
+            void* loopArgs[1] = { &loop };
+            Il2Cpp::Invoke(api.setLoop, player, loopArgs);
+        }
     }
 
     appliedPlayer = nullptr;

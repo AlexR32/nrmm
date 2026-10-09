@@ -250,9 +250,10 @@ HRESULT STDMETHODCALLTYPE D3D11Hook::hkResizeBuffers(IDXGISwapChain* pSwapChain,
     CleanupRenderTarget();
 
     HRESULT hr = oResizeBuffers(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
-    if (FAILED(hr))
-        return hr;
 
+    // Recreate even when the resize failed: the previous device objects and
+    // render target were already released above, so leaving them torn down would
+    // stop rendering until the next successful resize
     CreateRenderTarget(pSwapChain);
     ImGui_ImplDX11_CreateDeviceObjects();
 

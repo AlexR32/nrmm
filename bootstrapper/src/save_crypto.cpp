@@ -4,7 +4,8 @@
 #include <cstring>
 
 uint32_t SaveCrypto::Rotl(uint32_t value, int bits) {
-    return (value << bits) | (value >> (32 - bits));
+    bits &= 31;
+    return bits == 0 ? value : ((value << bits) | (value >> (32 - bits)));
 }
 
 void SaveCrypto::Sha1Init(Sha1& ctx) {
