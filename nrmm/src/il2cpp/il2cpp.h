@@ -36,7 +36,6 @@ public:
     // ("System.Reflection.MethodInfo") or a nested/Il2CppInspector style name
     // ("car_carOrigin.ChassisType", "Il2Cpp.CarParent")
     static Il2CppClass* FindClass(const std::string& requested, Il2CppImage* image = nullptr);
-    static Il2CppClass* GetCachedClass(const std::string& name, Il2CppImage* image = nullptr);
     static std::string GetClassFullName(Il2CppClass* klass);
 
     // Methods
@@ -125,8 +124,6 @@ public:
     // Unity helpers
     // UnityEngine.Object.FindObjectOfType<T>() with a reflection fallback
     static Il2CppObject* FindObjectOfType(Il2CppClass* klass);
-    static bool CurrentThreadIsMainThread();
-    static int GetCurrentThreadId();
 
     // UnityEngine.Object.FindObjectsOfType<T>() returning every active instance
     // of the requested type as a managed array
@@ -196,11 +193,18 @@ private:
     static Il2CppDomain* pDomain;
     static std::atomic_bool initialized;
 
+    // Reflection metadata is immutable for the life of the process, so resolved
+    // classes, fields and methods are cached. Keys are the owning class/image
+    // plus the requested name, which keeps repeated per-frame lookups to a hash
+    // probe instead of a hierarchy walk.
     static std::unordered_map<std::string, Il2CppImage*> imageCache;
-    static std::unordered_map<std::string, Il2CppClass*> classCache;
+    static std::unordered_map<Il2CppImage*, std::unordered_map<std::string, Il2CppClass*>> classCache;
+    static std::unordered_map<Il2CppClass*, std::unordered_map<std::string, FieldInfo*>> fieldCache;
+    static std::unordered_map<Il2CppClass*, std::unordered_map<std::string, const MethodInfo*>> methodCache;
     static std::mutex initMutex;
     static std::mutex imageMutex;
     static std::mutex classMutex;
+    static std::mutex memberMutex;
 
     static HMODULE TryLoad() noexcept;
     static bool BindExports();

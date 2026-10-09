@@ -24,10 +24,13 @@ Il2CppDomain* Il2Cpp::pDomain = nullptr;
 std::atomic_bool Il2Cpp::initialized{false};
 
 std::unordered_map<std::string, Il2CppImage*> Il2Cpp::imageCache{};
-std::unordered_map<std::string, Il2CppClass*> Il2Cpp::classCache{};
+std::unordered_map<Il2CppImage*, std::unordered_map<std::string, Il2CppClass*>> Il2Cpp::classCache{};
+std::unordered_map<Il2CppClass*, std::unordered_map<std::string, FieldInfo*>> Il2Cpp::fieldCache{};
+std::unordered_map<Il2CppClass*, std::unordered_map<std::string, const MethodInfo*>> Il2Cpp::methodCache{};
 std::mutex Il2Cpp::initMutex{};
 std::mutex Il2Cpp::imageMutex{};
 std::mutex Il2Cpp::classMutex{};
+std::mutex Il2Cpp::memberMutex{};
 
 // Lifecycle
 
@@ -163,22 +166,20 @@ Il2CppClass* Il2Cpp::FindClass(const std::string& requested, Il2CppImage* image)
 
     if (!image) image = GetImage("Assembly-CSharp");
 
-    std::string key = std::to_string(reinterpret_cast<uintptr_t>(image)) + "|" + name;
     {
         std::lock_guard<std::mutex> lock(classMutex);
-        std::unordered_map<std::string, Il2CppClass*>::iterator it = classCache.find(key);
-        if (it != classCache.end()) return it->second;
+        std::unordered_map<Il2CppImage*, std::unordered_map<std::string, Il2CppClass*>>::iterator it = classCache.find(image);
+        if (it != classCache.end()) {
+            std::unordered_map<std::string, Il2CppClass*>::iterator jt = it->second.find(name);
+            if (jt != it->second.end()) return jt->second;
+        }
     }
 
     Il2CppClass* klass = FindClassInImage(image, name);
 
     std::lock_guard<std::mutex> lock(classMutex);
-    classCache[key] = klass;
+    classCache[image][name] = klass;
     return klass;
-}
-
-Il2CppClass* Il2Cpp::GetCachedClass(const std::string& name, Il2CppImage* image) {
-    return FindClass(name, image);
 }
 
 std::string Il2Cpp::GetClassFullName(Il2CppClass* klass) {
@@ -234,15 +235,33 @@ Il2CppClass* Il2Cpp::FindClassInImage(Il2CppImage* image, const std::string& nam
 // Methods
 
 const MethodInfo* Il2Cpp::GetMethod(Il2CppClass* klass, const char* methodName, int paramCount) {
-    if (!klass || !il2cpp_class_get_method_from_name) return nullptr;
+    if (!klass || !methodName || !il2cpp_class_get_method_from_name) return nullptr;
+
+    // Overloads differ by arity, so the arity is part of the cache key
+    std::string key = methodName;
+    key += '#';
+    key += std::to_string(paramCount);
+
+    {
+        std::lock_guard<std::mutex> lock(memberMutex);
+        std::unordered_map<Il2CppClass*, std::unordered_map<std::string, const MethodInfo*>>::iterator it = methodCache.find(klass);
+        if (it != methodCache.end()) {
+            std::unordered_map<std::string, const MethodInfo*>::iterator jt = it->second.find(key);
+            if (jt != it->second.end()) return jt->second;
+        }
+    }
 
     // Walk the hierarchy so inherited methods resolve too
+    const MethodInfo* found = nullptr;
     for (Il2CppClass* k = klass; k; k = il2cpp_class_get_parent ? il2cpp_class_get_parent(k) : nullptr) {
-        const MethodInfo* method = il2cpp_class_get_method_from_name(k, methodName, paramCount);
-        if (method) return method;
+        found = il2cpp_class_get_method_from_name(k, methodName, paramCount);
+        if (found) break;
         if (!il2cpp_class_get_parent) break;
     }
-    return nullptr;
+
+    std::lock_guard<std::mutex> lock(memberMutex);
+    methodCache[klass][key] = found;
+    return found;
 }
 
 const MethodInfo* Il2Cpp::GetMethod(const char* className, const char* methodName, int paramCount, Il2CppImage* image) {
@@ -354,14 +373,27 @@ void Il2Cpp::GcHandleFree(uint32_t handle) {
 // Fields
 
 FieldInfo* Il2Cpp::FindField(Il2CppClass* klass, const char* fieldName) {
-    if (!klass || !il2cpp_class_get_field_from_name) return nullptr;
+    if (!klass || !fieldName || !il2cpp_class_get_field_from_name) return nullptr;
 
+    {
+        std::lock_guard<std::mutex> lock(memberMutex);
+        std::unordered_map<Il2CppClass*, std::unordered_map<std::string, FieldInfo*>>::iterator it = fieldCache.find(klass);
+        if (it != fieldCache.end()) {
+            std::unordered_map<std::string, FieldInfo*>::iterator jt = it->second.find(fieldName);
+            if (jt != it->second.end()) return jt->second;
+        }
+    }
+
+    FieldInfo* found = nullptr;
     for (Il2CppClass* k = klass; k; k = il2cpp_class_get_parent ? il2cpp_class_get_parent(k) : nullptr) {
-        FieldInfo* field = il2cpp_class_get_field_from_name(k, fieldName);
-        if (field) return field;
+        found = il2cpp_class_get_field_from_name(k, fieldName);
+        if (found) break;
         if (!il2cpp_class_get_parent) break;
     }
-    return nullptr;
+
+    std::lock_guard<std::mutex> lock(memberMutex);
+    fieldCache[klass][fieldName] = found;
+    return found;
 }
 
 Il2CppClass* Il2Cpp::ObjectClass(Il2CppObject* object) {
@@ -544,31 +576,6 @@ Il2CppObject* Il2Cpp::FindObjectOfType(Il2CppClass* klass) {
     if (!inflated) return nullptr;
 
     return Invoke(inflated, nullptr, nullptr);
-}
-
-bool Il2Cpp::CurrentThreadIsMainThread() {
-    Il2CppImage* coreModule = GetImage("UnityEngine.CoreModule");
-    Il2CppClass* objectClass = FindClassInImage(coreModule, "UnityEngine.Object");
-    if (!objectClass) return false;
-
-    const MethodInfo* byType = GetMethod(objectClass, "CurrentThreadIsMainThread", 0);
-    if (!byType) return false;
-
-    // The method returns a bool value type, so Invoke hands back a boxed
-    // Boolean (always non-null); it must be unboxed to read the result
-    return UnboxBool(Invoke(byType, nullptr, nullptr));
-}
-
-int Il2Cpp::GetCurrentThreadId() {
-    Il2CppImage* coreModule = GetImage("UnityEngine.CoreModule");
-    Il2CppClass* objectClass = FindClassInImage(coreModule, "UnityEngine.Object");
-    if (!objectClass) return 0;
-
-    const MethodInfo* byType = GetMethod(objectClass, "GetCurrentThreadId", 0);
-    if (!byType) return 0;
-
-    Il2CppObject* result = Invoke(byType, nullptr, nullptr);
-    return UnboxInt32(result);
 }
 
 Il2CppArray* Il2Cpp::FindObjectsOfType(Il2CppClass* klass) {

@@ -102,18 +102,6 @@ public:
 
     static void RenderEnumCombo(const char* label, const std::vector<Il2Cpp::EnumMember>& options, int selected, std::function<void(int)> onSelect);
 
-    // Poll a condition until it becomes true or the timeout expires
-    template <typename TPredicate>
-    static bool WaitUntil(TPredicate predicate, int timeoutMs = 15000) {
-        const std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
-        while (std::chrono::steady_clock::now() < deadline) {
-            if (predicate()) return true;
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        return predicate();
-    }
-
-    static Il2CppObject* WaitForResultField(Il2CppObject* instance, const char* fieldName);
     static void DestroyObject(Il2CppObject* object);
 
     // Writes the game's ES3 cache to disk. GodConstant.es3_settings uses
@@ -142,9 +130,6 @@ public:
     // the render thread, so published atomically
     static bool IsInMainMenu();
     static inline std::atomic_bool inMainMenu{ false };
-
-    static bool IsInGarage();
-    static inline std::atomic_bool inGarage{ false };
 
     // A game is loaded and the script thread has been identified, so game
     // actions can be queued through MainThread.

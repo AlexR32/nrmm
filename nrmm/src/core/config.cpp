@@ -21,7 +21,8 @@ bool Config::ParseBool(const std::string& value, bool fallback) {
 bool Config::ParseKey(const std::string& value, int& out) {
     char* end = nullptr;
     const long parsed = std::strtol(value.c_str(), &end, 10);
-    if (end == value.c_str() || parsed < 1 || parsed > 254) return false;
+    // Require the whole trimmed value to be consumed so "5abc" is rejected
+    if (end == value.c_str() || *end != '\0' || parsed < 1 || parsed > 254) return false;
     out = static_cast<int>(parsed);
     return true;
 }

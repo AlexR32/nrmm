@@ -311,6 +311,7 @@ void Garage::LoadModelOptionsNow() {
         std::lock_guard<std::mutex> lock(modelMutex);
         modelOptions = std::move(options);
     }
+    modelOptionsVersion.fetch_add(1, std::memory_order_release);
 
     modelLoaded.store(optionCount != 0);
     if (optionCount != 0) {
@@ -405,12 +406,15 @@ void Garage::RenderTab() {
             LoadModelOptions(true);
         }
     } else {
-        // Copy the list so the script thread can replace it without racing the widgets
-        std::vector<ModelOption> options;
-        {
+        // Re-copy the list only when the script thread replaced it, so the
+        // widgets never race the writer and the list is not deep-copied per frame
+        const uint32_t version = modelOptionsVersion.load(std::memory_order_acquire);
+        if (version != modelOptionsViewVersion) {
             std::lock_guard<std::mutex> lock(modelMutex);
-            options = modelOptions;
+            modelOptionsView = modelOptions;
+            modelOptionsViewVersion = version;
         }
+        const std::vector<ModelOption>& options = modelOptionsView;
 
         if (options.empty()) {
             ImGui::TextUnformatted("No model types available.");

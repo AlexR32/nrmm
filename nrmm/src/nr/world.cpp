@@ -51,6 +51,7 @@ void World::RequestAttackTargets() {
             std::lock_guard<std::mutex> lock(attackTargetsMutex);
             attackTargets = std::move(targets);
         }
+        attackTargetsVersion.fetch_add(1, std::memory_order_release);
 
         attackTargetsRequested.store(false, std::memory_order_release);
     });
@@ -247,6 +248,7 @@ void World::RequestTravelTargets() {
             std::lock_guard<std::mutex> lock(travelMutex);
             travelTargets = std::move(targets);
         }
+        travelVersion.fetch_add(1, std::memory_order_release);
 
         travelRequested.store(false, std::memory_order_release);
     });
@@ -505,6 +507,7 @@ void World::RequestDestinations() {
             std::lock_guard<std::mutex> lock(destinationMutex);
             destinationTargets = std::move(targets);
         }
+        destinationVersion.fetch_add(1, std::memory_order_release);
 
         destinationRequested.store(false, std::memory_order_release);
     });
@@ -673,14 +676,17 @@ void World::RefreshSnapshot() {
             std::lock_guard<std::mutex> lock(attackTargetsMutex);
             attackTargets.clear();
         }
+        attackTargetsVersion.fetch_add(1, std::memory_order_release);
         {
             std::lock_guard<std::mutex> lock(travelMutex);
             travelTargets.clear();
         }
+        travelVersion.fetch_add(1, std::memory_order_release);
         {
             std::lock_guard<std::mutex> lock(destinationMutex);
             destinationTargets.clear();
         }
+        destinationVersion.fetch_add(1, std::memory_order_release);
     }
 }
 
@@ -707,13 +713,15 @@ void World::RenderTab() {
 
     ImGui::SeparatorText("Meetspot attack");
 
-    // The target list is rebuilt on the script thread; take a copy so the
-    // widgets never touch the vector the script thread may replace.
-    std::vector<MeetspotTarget> targets;
-    {
+    // The target list is rebuilt on the script thread; refresh the render-thread
+    // view only when it was replaced, so the widgets never touch the live vector
+    const uint32_t attackVersion = attackTargetsVersion.load(std::memory_order_acquire);
+    if (attackVersion != attackTargetsViewVersion) {
         std::lock_guard<std::mutex> lock(attackTargetsMutex);
-        targets = attackTargets;
+        attackTargetsView = attackTargets;
+        attackTargetsViewVersion = attackVersion;
     }
+    const std::vector<MeetspotTarget>& targets = attackTargetsView;
 
     if (targets.empty()) {
         ImGui::TextUnformatted(sceneAvailable ? "No defendable meetspots" : "Not in a driving scene");
@@ -752,13 +760,15 @@ void World::RenderTab() {
 
     ImGui::SeparatorText("Fast travel");
 
-    // The target list is rebuilt on the script thread; copy it so the widgets
-    // never touch the vector while it is being replaced.
-    std::vector<TravelTarget> travels;
-    {
+    // The target list is rebuilt on the script thread; refresh the render-thread
+    // view only when it was replaced.
+    const uint32_t travelVersionNow = travelVersion.load(std::memory_order_acquire);
+    if (travelVersionNow != travelViewVersion) {
         std::lock_guard<std::mutex> lock(travelMutex);
-        travels = travelTargets;
+        travelView = travelTargets;
+        travelViewVersion = travelVersionNow;
     }
+    const std::vector<TravelTarget>& travels = travelView;
 
     if (travels.empty()) {
         ImGui::TextUnformatted(sceneAvailable ? "No travel points" : "Not in a driving scene");
@@ -796,13 +806,15 @@ void World::RenderTab() {
 
     ImGui::SeparatorText("Destinations");
 
-    // The destination list is rebuilt on the script thread; copy it so the
-    // widgets never touch the vector while it is being replaced.
-    std::vector<Destination> destinations;
-    {
+    // The destination list is rebuilt on the script thread; refresh the
+    // render-thread view only when it was replaced.
+    const uint32_t destinationVersionNow = destinationVersion.load(std::memory_order_acquire);
+    if (destinationVersionNow != destinationViewVersion) {
         std::lock_guard<std::mutex> lock(destinationMutex);
-        destinations = destinationTargets;
+        destinationView = destinationTargets;
+        destinationViewVersion = destinationVersionNow;
     }
+    const std::vector<Destination>& destinations = destinationView;
 
     if (destinations.empty()) {
         ImGui::TextUnformatted(sceneAvailable ? "No destinations" : "Not in a driving scene");

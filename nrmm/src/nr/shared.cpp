@@ -186,15 +186,6 @@ void Shared::RenderEnumCombo(const char* label, const std::vector<Il2Cpp::EnumMe
     }
 }
 
-Il2CppObject* Shared::WaitForResultField(Il2CppObject* instance, const char* fieldName) {
-    Il2CppObject* value = nullptr;
-    WaitUntil([&]() {
-        value = Il2Cpp::GetInstanceFieldObject(instance, fieldName);
-        return value != nullptr;
-    });
-    return value;
-}
-
 void Shared::DestroyObject(Il2CppObject* object) {
     if (!object) return;
 
@@ -257,12 +248,6 @@ bool Shared::IsInMainMenu() {
     default:
         return false;
     }
-}
-
-bool Shared::IsInGarage() {
-    Il2CppObject* god = God();
-    Il2CppObject* scene = god ? Il2Cpp::GetInstanceFieldObject(god, "floatingPoint_drivingScene") : nullptr;
-    return scene != nullptr;
 }
 
 Il2CppObject* Shared::God() {

@@ -83,7 +83,6 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
     Enums::LoadAll();
 
     Shared::inMainMenu = Shared::IsInMainMenu();
-    // Shared::inGarage = Shared::IsInGarage();
 
     // Read the state the menu displays while we are on the main thread, so the
     // render thread never touches managed objects for its widgets

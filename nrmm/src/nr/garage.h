@@ -85,6 +85,12 @@ private:
 
     inline static std::vector<ModelOption> modelOptions;
     inline static std::mutex modelMutex;
+    // Bumped on the script thread whenever modelOptions is replaced; the render
+    // thread re-copies the list only when the version changes instead of deep
+    // copying every frame
+    inline static std::atomic<uint32_t> modelOptionsVersion{0};
+    inline static std::vector<ModelOption> modelOptionsView;
+    inline static uint32_t modelOptionsViewVersion = 0;
     inline static int selectedModel = 0;
     inline static std::atomic_bool modelLoaded{false};
     inline static std::atomic_bool modelLoadAttempted{false};

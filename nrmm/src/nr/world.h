@@ -114,9 +114,13 @@ private:
     inline static Snapshot snapshot;
 
     // Attack targets live on the script thread; the render thread only ever
-    // reads them under the mutex
+    // reads them under the mutex. The version + view pair lets the render thread
+    // skip re-copying the list when it has not changed
     inline static std::vector<MeetspotTarget> attackTargets;
     inline static std::mutex attackTargetsMutex;
+    inline static std::atomic<uint32_t> attackTargetsVersion{0};
+    inline static std::vector<MeetspotTarget> attackTargetsView;
+    inline static uint32_t attackTargetsViewVersion = 0;
     inline static std::atomic_bool attackTargetsRequested{false};
     inline static int attackTargetIndex = 0;
     inline static int32_t attackTargetId = -1;
@@ -125,6 +129,9 @@ private:
     // reads the copy under the mutex
     inline static std::vector<TravelTarget> travelTargets;
     inline static std::mutex travelMutex;
+    inline static std::atomic<uint32_t> travelVersion{0};
+    inline static std::vector<TravelTarget> travelView;
+    inline static uint32_t travelViewVersion = 0;
     inline static std::atomic_bool travelRequested{false};
     inline static int travelIndex = 0;
 
@@ -132,6 +139,9 @@ private:
     // thread like the lists above
     inline static std::vector<Destination> destinationTargets;
     inline static std::mutex destinationMutex;
+    inline static std::atomic<uint32_t> destinationVersion{0};
+    inline static std::vector<Destination> destinationView;
+    inline static uint32_t destinationViewVersion = 0;
     inline static std::atomic_bool destinationRequested{false};
     inline static int destinationIndex = 0;
 

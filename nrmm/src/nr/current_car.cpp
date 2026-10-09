@@ -235,10 +235,16 @@ void CurrentCar::SaveCar() {
 void CurrentCar::RefreshSnapshot() {
     Il2Cpp::ThreadAttach();
 
+    // Resolve the managed objects once and reuse them for the whole snapshot
+    Il2CppObject* car = Shared::PlayerCar();
+    Il2CppObject* carLocal = Shared::CarLocal();
+    Il2CppObject* carData = Shared::CarData();
+    Il2CppObject* carEngine = Shared::CarEngine();
+
     if (Enums::Ready()) {
-        snapshot.drivetrainIndex.store(Enums::SyncIndex(Enums::Id::Drivetrain, Shared::CarData(), "drivetrain"), std::memory_order_relaxed);
-        snapshot.inductionTypeIndex.store(Enums::SyncIndex(Enums::Id::InductionType, Shared::CarData(), "inductionType"), std::memory_order_relaxed);
-        snapshot.fuelTypeIndex.store(Enums::SyncIndex(Enums::Id::FuelType, Shared::CarLocal(), "current_fuelType"), std::memory_order_relaxed);
+        snapshot.drivetrainIndex.store(Enums::SyncIndex(Enums::Id::Drivetrain, carData, "drivetrain"), std::memory_order_relaxed);
+        snapshot.inductionTypeIndex.store(Enums::SyncIndex(Enums::Id::InductionType, carData, "inductionType"), std::memory_order_relaxed);
+        snapshot.fuelTypeIndex.store(Enums::SyncIndex(Enums::Id::FuelType, carLocal, "current_fuelType"), std::memory_order_relaxed);
     }
 
     const bool freezeHealth = freezeEngineHealth.load(std::memory_order_relaxed);
@@ -249,13 +255,11 @@ void CurrentCar::RefreshSnapshot() {
     const bool nosFreeze = freezeNos.load(std::memory_order_relaxed);
 
     float engineHealth = 0.0f;
-    Il2CppObject* carEngine = Shared::CarEngine();
     const bool haveEngineHealth = carEngine && Il2Cpp::GetInstanceFieldValue(carEngine, "engineHealth", engineHealth);
 
     float fuelTank = 0.0f;
     float fuelTankCapacity = 0.0f;
 
-    Il2CppObject* car = Shared::PlayerCar();
     snapshot.carLoaded.store(car != nullptr, std::memory_order_relaxed);
 
     Il2Cpp::GetInstanceFieldValue(car, "fuelTank", fuelTank);
@@ -269,7 +273,6 @@ void CurrentCar::RefreshSnapshot() {
         Il2Cpp::GetInstanceFieldValue(car, "engineHeatOil", oil);
     }
 
-    Il2CppObject* carLocal = Shared::CarLocal();
     if (carLocal) {
         Il2Cpp::GetInstanceFieldValue(carLocal, "brakeTemp", brakeTemp);
     }
@@ -329,7 +332,6 @@ void CurrentCar::RefreshSnapshot() {
 
     // NOS
     float nos = 0.0f;
-    Il2CppObject* carData = Shared::CarData();
     const bool haveNos = carData && Il2Cpp::GetInstanceFieldValue(carData, "NOS_fuelLevel", nos);
     if (nosFreeze) {
         nos = frozenNos.load(std::memory_order_relaxed);
