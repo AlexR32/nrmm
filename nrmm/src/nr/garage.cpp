@@ -6,20 +6,6 @@
 #include "il2cpp/main_thread.h"
 #include "core/console.h"
 
-Shared::Status Garage::status("Garage");
-Shared::Sequence Garage::spawn;
-Garage::SpawnContext Garage::ctx;
-
-std::vector<Garage::ModelOption> Garage::modelOptions;
-std::mutex Garage::modelMutex;
-int Garage::selectedModel = 0;
-std::atomic_bool Garage::modelLoaded{ false };
-std::atomic_bool Garage::modelLoadAttempted{ false };
-std::atomic_bool Garage::modelLoadPending{ false };
-std::atomic_bool Garage::busy{ false };
-
-Garage::SpawnOverrides Garage::spawnOverrides;
-
 // Helper to set car overrides
 bool Garage::SetCarField(Il2CppObject* targetCar, const char* fieldName, float value) {
     if (Il2Cpp::SetInstanceFieldValue(targetCar, fieldName, value)) return true;

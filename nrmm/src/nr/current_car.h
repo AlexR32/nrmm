@@ -74,30 +74,30 @@ private:
 
     static void SaveCar();
 
-    static Shared::Status status;
-    static Snapshot snapshot;
-
-    // Number plate edit buffer. Owned by the render thread; resynced from the
-    // live snapshot while plateDirty is false, and read when an action is posted
-    static PlateValues plateEdit;
-    static std::atomic_bool plateDirty;
-
-    // Freeze toggles. While a freeze is off its target tracks the live value,
-    // so enabling it captures whatever the car currently has
-    static std::atomic_bool freezeEngineHealth;
-    static std::atomic_bool freezeFuel;
-    static std::atomic_bool freezeWaterTemp;
-    static std::atomic_bool freezeOilTemp;
-    static std::atomic_bool freezeBrakeTemp;
-    static std::atomic_bool freezeNos;
-    static std::atomic<float> frozenEngineHealth;
-    static std::atomic<float> frozenFuel;
-    static std::atomic<float> frozenWaterTemp;
-    static std::atomic<float> frozenOilTemp;
-    static std::atomic<float> frozenBrakeTemp;
-    static std::atomic<float> frozenNos;
-
     // Game constants
     static constexpr float kEngineHeatWater = 50.0f;
     static constexpr float kEngineHeatOil = 55.0f;
+
+    inline static Shared::Status status{"CurrentCar"};
+    inline static Snapshot snapshot;
+
+    // Number plate edit buffer. Owned by the render thread; resynced from the
+    // live snapshot while plateDirty is false, and read when an action is posted
+    inline static PlateValues plateEdit;
+    inline static std::atomic_bool plateDirty{false};
+
+    // Freeze toggles. While a freeze is off its target tracks the live value,
+    // so enabling it captures whatever the car currently has
+    inline static std::atomic_bool freezeEngineHealth{false};
+    inline static std::atomic_bool freezeFuel{false};
+    inline static std::atomic_bool freezeWaterTemp{false};
+    inline static std::atomic_bool freezeOilTemp{false};
+    inline static std::atomic_bool freezeBrakeTemp{false};
+    inline static std::atomic_bool freezeNos{false};
+    inline static std::atomic<float> frozenEngineHealth{0.0f};
+    inline static std::atomic<float> frozenFuel{0.0f};
+    inline static std::atomic<float> frozenWaterTemp{kEngineHeatWater};
+    inline static std::atomic<float> frozenOilTemp{kEngineHeatOil};
+    inline static std::atomic<float> frozenBrakeTemp{0.0f};
+    inline static std::atomic<float> frozenNos{0.0f};
 };

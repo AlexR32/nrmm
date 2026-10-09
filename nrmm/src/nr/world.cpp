@@ -7,27 +7,6 @@
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
 
-Shared::Status World::status("World");
-World::Snapshot World::snapshot;
-
-std::vector<World::MeetspotTarget> World::attackTargets;
-std::mutex World::attackTargetsMutex;
-std::atomic_bool World::attackTargetsRequested{false};
-int World::attackTargetIndex = 0;
-int32_t World::attackTargetId = -1;
-
-std::vector<World::TravelTarget> World::travelTargets;
-std::mutex World::travelMutex;
-std::atomic_bool World::travelRequested{false};
-int World::travelIndex = 0;
-
-std::vector<World::Destination> World::destinationTargets;
-std::mutex World::destinationMutex;
-std::atomic_bool World::destinationRequested{false};
-int World::destinationIndex = 0;
-
-bool World::wasSceneLoaded = false;
-
 // Meetspot attack
 
 void World::RequestAttackTargets() {

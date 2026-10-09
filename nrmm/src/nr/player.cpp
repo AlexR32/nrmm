@@ -6,30 +6,6 @@
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
 
-Shared::Status Player::status("Player");
-Player::Snapshot Player::snapshot;
-
-int Player::ownerMeetSpotIndex = 0;
-int Player::ownerCrewIndex = 0;
-float Player::ownerStrength = 0.0f;
-std::atomic_bool Player::disableCrewRestrictions{ false };
-std::atomic<int> Player::loadedDataVersion{ 0 };
-std::atomic_bool Player::loadedDataValid{ false };
-std::atomic<int> Player::loadedOwnerIndex{ -1 };
-std::atomic<float> Player::loadedStrength{ 0.0f };
-//std::atomic<int> Player::loadedLastUpdatedDay{ 0 };
-//std::atomic<float> Player::loadedLastDaySkyLerp{ 0.0f };
-int Player::seenDataVersion = 0;
-
-std::atomic_bool Player::freezeNightRep{ false };
-std::atomic<float> Player::frozenNightRep{ 0.0f };
-
-int Player::moneyToAdd = 0;
-float Player::repToAdd = 0.0f;
-int Player::meetSpotIndex = 0;
-int Player::debtToAdd = 0;
-int Player::bettingMoneyToAdd = 0;
-
 // Apply actions
 
 void Player::ApplyRaceCrewType(int index) {

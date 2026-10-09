@@ -104,30 +104,30 @@ private:
     static std::string ToFileUri(const std::string& utf8Path);
     static std::string FileName(const std::string& utf8Path);
 
-    static Shared::Status status;
+    inline static Shared::Status status{"LoadingVideo"};
 
     // File list, published by the render thread under listMutex
-    static std::mutex listMutex;
-    static std::vector<File> files;
-    static std::atomic_bool listLoaded;
+    inline static std::mutex listMutex;
+    inline static std::vector<File> files;
+    inline static std::atomic_bool listLoaded{false};
 
     // Selected file path, published to Pump() under pathMutex
-    static std::mutex pathMutex;
-    static std::string selectedPath;
+    inline static std::mutex pathMutex;
+    inline static std::string selectedPath;
 
     // Script-thread only
-    static Il2CppObject* dashboard;
-    static Il2CppObject* player;
-    static Il2CppObject* clipSource;
-    static Il2CppObject* loadingSong;
-    static bool loadingSongHidden;
-    static Il2CppObject* appliedPlayer;
-    static std::string appliedUri;
-    static bool overrideApplied;
-    static bool shutDown;
+    inline static Il2CppObject* dashboard = nullptr;
+    inline static Il2CppObject* player = nullptr;
+    inline static Il2CppObject* clipSource = nullptr;
+    inline static Il2CppObject* loadingSong = nullptr;
+    inline static bool loadingSongHidden = false;
+    inline static Il2CppObject* appliedPlayer = nullptr;
+    inline static std::string appliedUri;
+    inline static bool overrideApplied = false;
+    inline static bool shutDown = false;
 
     // Random mode: the file chosen for the current loading screen, and the
     // combined "a load is running" state used to detect new loads
-    static std::string chosenPath;
-    static bool prevLoadActive;
+    inline static std::string chosenPath;
+    inline static bool prevLoadActive = false;
 };

@@ -8,5 +8,5 @@ public:
     static void RefreshSnapshot();
 private:
     static void FixChassis();
-    static std::atomic_bool chassisFixed;
+    inline static std::atomic_bool chassisFixed{false};
 };

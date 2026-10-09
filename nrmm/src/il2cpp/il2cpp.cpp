@@ -21,7 +21,7 @@ using namespace Il2CppBindings;
 
 HMODULE Il2Cpp::dll = nullptr;
 Il2CppDomain* Il2Cpp::pDomain = nullptr;
-std::atomic_bool Il2Cpp::initialized{ false };
+std::atomic_bool Il2Cpp::initialized{false};
 
 std::unordered_map<std::string, Il2CppImage*> Il2Cpp::imageCache{};
 std::unordered_map<std::string, Il2CppClass*> Il2Cpp::classCache{};
@@ -90,7 +90,7 @@ HMODULE Il2Cpp::TryLoad() noexcept {
 }
 
 bool Il2Cpp::BindExports() {
-    ExportBinder binder{ dll };
+    ExportBinder binder{dll};
     return Il2CppBindings::BindAll(binder);
 }
 

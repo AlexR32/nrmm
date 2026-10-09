@@ -60,7 +60,7 @@ private:
     static void LoadAllInline();
     static const char* ClassName(Id id);
 
-    static std::vector<Il2Cpp::EnumMember> lists[static_cast<size_t>(Id::Count)];
-    static std::atomic_bool loaded;
-    static std::atomic_bool requested;
+    inline static std::vector<Il2Cpp::EnumMember> lists[static_cast<size_t>(Id::Count)];
+    inline static std::atomic_bool loaded{false};
+    inline static std::atomic_bool requested{false};
 };

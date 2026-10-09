@@ -6,10 +6,6 @@
 #include "il2cpp/main_thread.h"
 #include "core/console.h"
 
-std::vector<Il2Cpp::EnumMember> Enums::lists[static_cast<size_t>(Enums::Id::Count)];
-std::atomic_bool Enums::loaded{false};
-std::atomic_bool Enums::requested{false};
-
 const char* Enums::ClassName(Id id) {
     switch (id) {
     case Id::Drivetrain:      return "CarData.Drivetrain";

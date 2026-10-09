@@ -79,17 +79,17 @@ private:
 
     static void RenderOverrides();
 
-    static Shared::Status status;
-    static Shared::Sequence spawn;
-    static SpawnContext ctx;
+    inline static Shared::Status status{"Garage"};
+    inline static Shared::Sequence spawn;
+    inline static SpawnContext ctx;
 
-    static std::vector<ModelOption> modelOptions;
-    static std::mutex modelMutex;
-    static int selectedModel;
-    static std::atomic_bool modelLoaded;
-    static std::atomic_bool modelLoadAttempted;
-    static std::atomic_bool modelLoadPending;
-    static std::atomic_bool busy;
+    inline static std::vector<ModelOption> modelOptions;
+    inline static std::mutex modelMutex;
+    inline static int selectedModel = 0;
+    inline static std::atomic_bool modelLoaded{false};
+    inline static std::atomic_bool modelLoadAttempted{false};
+    inline static std::atomic_bool modelLoadPending{false};
+    inline static std::atomic_bool busy{false};
 
-    static SpawnOverrides spawnOverrides;
+    inline static SpawnOverrides spawnOverrides;
 };

@@ -36,9 +36,9 @@ private:
     static void EnsureUpdateHook();
     static void __fastcall HookedGodConstantUpdate(Il2CppObject* self, const MethodInfo* method);
 
-    static GodConstantUpdateFn originalGodConstantUpdate;
-    static void* updateHookTarget;
-    static std::atomic_bool updateHookInstalled;
+    inline static GodConstantUpdateFn originalGodConstantUpdate = nullptr;
+    inline static void* updateHookTarget = nullptr;
+    inline static std::atomic_bool updateHookInstalled{false};
 
     // GodConstant.doesCarPassRestriction: the meetspot-restriction bypass.
     // EnsureRestrictionHook is retried from EnsureInstalled until the game class
@@ -47,9 +47,9 @@ private:
     static void EnsureRestrictionHook();
     static bool __fastcall HookedDoesCarPassRestriction(Il2CppObject* self, int32_t targetRestrict, Il2CppObject* targetCar, const MethodInfo* method);
 
-    static DoesCarPassRestrictionFn originalDoesCarPassRestriction;
-    static void* restrictionHookTarget;
-    static std::atomic_bool restrictionHookInstalled;
+    inline static DoesCarPassRestrictionFn originalDoesCarPassRestriction = nullptr;
+    inline static void* restrictionHookTarget = nullptr;
+    inline static std::atomic_bool restrictionHookInstalled{false};
 
     // GodConstant.DoesPlayerMeetCrewSpec: the meetspot crew-spec bypass, sharing
     // the same toggle. EnsureCrewSpecHook is retried from EnsureInstalled until
@@ -58,13 +58,13 @@ private:
     static void EnsureCrewSpecHook();
     static bool __fastcall HookedDoesPlayerMeetCrewSpec(Il2CppObject* self, float playerHP, float playerHandling, float playerBrake, int32_t targetCrew, float originSpecFloor, const MethodInfo* method);
 
-    static DoesPlayerMeetCrewSpecFn originalDoesPlayerMeetCrewSpec;
-    static void* crewSpecHookTarget;
-    static std::atomic_bool crewSpecHookInstalled;
+    inline static DoesPlayerMeetCrewSpecFn originalDoesPlayerMeetCrewSpec = nullptr;
+    inline static void* crewSpecHookTarget = nullptr;
+    inline static std::atomic_bool crewSpecHookInstalled{false};
 
     // Keeps Remove() from tearing the pump detour down while it is still
     // executing on the script thread
-    static std::atomic_int inFlight;
+    inline static std::atomic_int inFlight{0};
 
     struct HookScope {
         HookScope() { inFlight.fetch_add(1, std::memory_order_acq_rel); }

@@ -7,7 +7,7 @@
 #include <sstream>
 
 std::thread::id MainThread::boundId{};
-std::atomic_bool MainThread::bound{ false };
+std::atomic_bool MainThread::bound{false};
 std::deque<MainThread::Task> MainThread::queue{};
 std::mutex MainThread::queueMutex{};
 

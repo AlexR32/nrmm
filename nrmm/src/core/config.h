@@ -31,6 +31,10 @@ public:
 private:
     static std::wstring GetPath();
 
+    static std::string Trim(const std::string& value);
+    static bool ParseBool(const std::string& value, bool fallback);
+    static bool ParseKey(const std::string& value, int& out);
+
     static inline std::mutex fileMutex;
     static inline std::mutex valueMutex;
 

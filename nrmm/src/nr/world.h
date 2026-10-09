@@ -110,32 +110,32 @@ private:
     static Il2CppObject* ResolveDestinationScene(Il2CppObject* god, const Destination& destination);
     static bool SaveOwnedGarages(Il2CppObject* god, Il2CppObject* ownedGarages);
 
-    static Shared::Status status;
-    static Snapshot snapshot;
+    inline static Shared::Status status{"World"};
+    inline static Snapshot snapshot;
 
     // Attack targets live on the script thread; the render thread only ever
     // reads them under the mutex
-    static std::vector<MeetspotTarget> attackTargets;
-    static std::mutex attackTargetsMutex;
-    static std::atomic_bool attackTargetsRequested;
-    static int attackTargetIndex;
-    static int32_t attackTargetId;
+    inline static std::vector<MeetspotTarget> attackTargets;
+    inline static std::mutex attackTargetsMutex;
+    inline static std::atomic_bool attackTargetsRequested{false};
+    inline static int attackTargetIndex = 0;
+    inline static int32_t attackTargetId = -1;
 
     // Fast travel targets, rebuilt on the script thread. The render thread only
     // reads the copy under the mutex
-    static std::vector<TravelTarget> travelTargets;
-    static std::mutex travelMutex;
-    static std::atomic_bool travelRequested;
-    static int travelIndex;
+    inline static std::vector<TravelTarget> travelTargets;
+    inline static std::mutex travelMutex;
+    inline static std::atomic_bool travelRequested{false};
+    inline static int travelIndex = 0;
 
     // Destinations (garages, car storage, meetspots), rebuilt on the script
     // thread like the lists above
-    static std::vector<Destination> destinationTargets;
-    static std::mutex destinationMutex;
-    static std::atomic_bool destinationRequested;
-    static int destinationIndex;
+    inline static std::vector<Destination> destinationTargets;
+    inline static std::mutex destinationMutex;
+    inline static std::atomic_bool destinationRequested{false};
+    inline static int destinationIndex = 0;
 
     // Auto-refresh state; only ever touched from the script thread
-    static bool wasSceneLoaded;
+    inline static bool wasSceneLoaded = false;
 
 };

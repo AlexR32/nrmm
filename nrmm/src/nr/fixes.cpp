@@ -5,8 +5,6 @@
 #include "il2cpp/il2cpp.h"
 #include "core/console.h"
 
-std::atomic_bool Fixes::chassisFixed{false};
-
 // Game-bug workarounds
 
 // The game ships the Tobimizu Wasp (model 33) on the Kymoto Sorana hatch chassis (21)

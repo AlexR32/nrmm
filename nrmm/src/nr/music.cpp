@@ -9,37 +9,6 @@
 #include <cwctype>
 #include <filesystem>
 
-Shared::Status Music::status("Music");
-std::mutex Music::listMutex;
-std::vector<Music::Track> Music::tracks;
-std::atomic_bool Music::listLoaded{ false };
-int Music::selectedIndex = 0;
-std::atomic_bool Music::playlist{ true };
-std::atomic_bool Music::shuffle{ false };
-std::atomic<int> Music::pendingAction{ static_cast<int>(Action::None) };
-std::atomic<int> Music::pendingIndex{ -1 };
-std::atomic_bool Music::playing{ false };
-std::atomic_bool Music::paused{ false };
-std::atomic_bool Music::loading{ false };
-std::atomic<int> Music::currentIndex{ -1 };
-std::mutex Music::nameMutex;
-std::string Music::currentName;
-Il2CppObject* Music::musicPlayer = nullptr;
-Il2CppObject* Music::audioManager = nullptr;
-Il2CppObject* Music::audioSource = nullptr;
-Il2CppObject* Music::ourClip = nullptr;
-Il2CppObject* Music::webRequest = nullptr;
-uint32_t Music::ourClipHandle = 0;
-uint32_t Music::webRequestHandle = 0;
-Il2CppObject* Music::nowPlayingEntry = nullptr;
-std::string Music::pushedName;
-float Music::playbackTime = 0.0f;
-bool Music::overrideActive = false;
-bool Music::wantsCustom = false;
-bool Music::suspended = false;
-bool Music::shutDown = false;
-std::mt19937 Music::rng{ std::random_device{}() };
-
 // Path and naming helpers
 
 std::string Music::WideToUtf8(const std::wstring& value) {

@@ -147,50 +147,50 @@ private:
     static AudioSourceApi& AsApi();
     static RequestApi& RequestApiFor();
 
-    static Shared::Status status;
+    inline static Shared::Status status{"Music"};
 
     // Track list, published by the render thread under listMutex
-    static std::mutex listMutex;
-    static std::vector<Track> tracks;
-    static std::atomic_bool listLoaded;
+    inline static std::mutex listMutex;
+    inline static std::vector<Track> tracks;
+    inline static std::atomic_bool listLoaded{false};
 
     // Render-thread widgets and queue
-    static int selectedIndex;
-    static std::atomic_bool playlist;
-    static std::atomic_bool shuffle;
-    static std::atomic<int> pendingAction;
-    static std::atomic<int> pendingIndex;
+    inline static int selectedIndex = 0;
+    inline static std::atomic_bool playlist{true};
+    inline static std::atomic_bool shuffle{false};
+    inline static std::atomic<int> pendingAction{static_cast<int>(Action::None)};
+    inline static std::atomic<int> pendingIndex{-1};
 
     // Playback state published to the render thread
-    static std::atomic_bool playing;
-    static std::atomic_bool paused;
-    static std::atomic_bool loading;
-    static std::atomic<int> currentIndex;
-    static std::mutex nameMutex;
-    static std::string currentName;
+    inline static std::atomic_bool playing{false};
+    inline static std::atomic_bool paused{false};
+    inline static std::atomic_bool loading{false};
+    inline static std::atomic<int> currentIndex{-1};
+    inline static std::mutex nameMutex;
+    inline static std::string currentName;
 
     // Script-thread only
-    static Il2CppObject* musicPlayer;
-    static Il2CppObject* audioManager;
-    static Il2CppObject* audioSource;
-    static Il2CppObject* ourClip;
-    static Il2CppObject* webRequest;
+    inline static Il2CppObject* musicPlayer = nullptr;
+    inline static Il2CppObject* audioManager = nullptr;
+    inline static Il2CppObject* audioSource = nullptr;
+    inline static Il2CppObject* ourClip = nullptr;
+    inline static Il2CppObject* webRequest = nullptr;
     // GC roots for ourClip / webRequest: the mod holds these across frames and
     // nothing in managed code necessarily references them, so without a handle
     // the GC can free them mid-use (crash on Invoke)
-    static uint32_t ourClipHandle;
-    static uint32_t webRequestHandle;
-    static Il2CppObject* nowPlayingEntry;
-    static std::string pushedName;
+    inline static uint32_t ourClipHandle = 0;
+    inline static uint32_t webRequestHandle = 0;
+    inline static Il2CppObject* nowPlayingEntry = nullptr;
+    inline static std::string pushedName;
     // Playback position of the current custom track, kept across source swaps,
     // clip re-takes and game-state suspensions so music does not restart
-    static float playbackTime;
-    static bool overrideActive;
+    inline static float playbackTime = 0.0f;
+    inline static bool overrideActive = false;
     // User intent: Play sets this, Stop clears it. When a game state blocks
     // custom music the intent stays set so playback resumes automatically
-    static bool wantsCustom;
-    static bool suspended;
-    static bool shutDown;
+    inline static bool wantsCustom = false;
+    inline static bool suspended = false;
+    inline static bool shutDown = false;
 
-    static std::mt19937 rng;
+    inline static std::mt19937 rng{std::random_device{}()};
 };

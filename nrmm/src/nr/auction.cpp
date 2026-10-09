@@ -6,10 +6,6 @@
 #include "il2cpp/main_thread.h"
 #include "core/console.h"
 
-Shared::Status Auction::status("Auction");
-Auction::Snapshot Auction::snapshot;
-bool Auction::refreshPending = false;
-
 // Destroy the instantiated papers and cars, clear the bookkeeping lists and let
 // the game rebuild the listing
 void Auction::RefreshAuction() {

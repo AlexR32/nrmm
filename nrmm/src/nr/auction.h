@@ -32,12 +32,12 @@ private:
     static void RefreshAuction();
     static void UnlockAllAuctionCars();
 
-    static Shared::Status status;
-    static Snapshot snapshot;
+    inline static Shared::Status status{"Auction"};
+    inline static Snapshot snapshot;
 
     // Set on the script thread when the mod starts a refresh, cleared once
     // RefreshSnapshot sees the game has finished spawning the new cars. Only
     // used to report "Auction refreshed" for a mod-triggered refresh, not for
     // the auction's own initial load
-    static bool refreshPending;
+    inline static bool refreshPending = false;
 };

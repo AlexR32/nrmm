@@ -28,7 +28,7 @@ public:
     // section and read on the script thread by the Hooks detours for
     // doesCarPassRestriction and DoesPlayerMeetCrewSpec; while set the player's
     // car always passes every crew requirement
-    static std::atomic_bool disableCrewRestrictions;
+    inline static std::atomic_bool disableCrewRestrictions{false};
 
 private:
     // Written by RefreshSnapshot() on the script thread, read by the render
@@ -70,35 +70,35 @@ private:
     static void AddBettingMoney();
     static void RemoveBettingMoney();
 
-    static Shared::Status status;
-    static Snapshot snapshot;
+    inline static Shared::Status status{"Player"};
+    inline static Snapshot snapshot;
 
     // Meetspot owner editor. The selection and edit fields belong to the render
     // thread; the loaded* values are published by the script thread after a
     // LoadMeetspotData call and copied into the edit fields on a version bump
-    static int ownerMeetSpotIndex;
-    static int ownerCrewIndex;
-    static float ownerStrength;
-    static std::atomic<int> loadedDataVersion;
-    static std::atomic_bool loadedDataValid;
-    static std::atomic<int> loadedOwnerIndex;
-    static std::atomic<float> loadedStrength;
+    inline static int ownerMeetSpotIndex = 0;
+    inline static int ownerCrewIndex = 0;
+    inline static float ownerStrength = 0.0f;
+    inline static std::atomic<int> loadedDataVersion{0};
+    inline static std::atomic_bool loadedDataValid{false};
+    inline static std::atomic<int> loadedOwnerIndex{-1};
+    inline static std::atomic<float> loadedStrength{0.0f};
     //static std::atomic<int> loadedLastUpdatedDay;
     //static std::atomic<float> loadedLastDaySkyLerp;
-    static int seenDataVersion;
+    inline static int seenDataVersion = 0;
 
     // Night reputation freeze, mirroring the current car stats: while held the
     // menu value is rewritten each frame, otherwise the live value is tracked
-    static std::atomic_bool freezeNightRep;
-    static std::atomic<float> frozenNightRep;
+    inline static std::atomic_bool freezeNightRep{false};
+    inline static std::atomic<float> frozenNightRep{0.0f};
 
     // Money / reputation edit fields. Owned by the render thread; read when an
     // action snapshots them and posts the work to the script thread
-    static int moneyToAdd;
-    static float repToAdd;
-    static int meetSpotIndex;
-    static int debtToAdd;
-    static int bettingMoneyToAdd;
+    inline static int moneyToAdd = 0;
+    inline static float repToAdd = 0.0f;
+    inline static int meetSpotIndex = 0;
+    inline static int debtToAdd = 0;
+    inline static int bettingMoneyToAdd = 0;
 
     // Game constants
     static constexpr int kUnlockGameRep = 34275;

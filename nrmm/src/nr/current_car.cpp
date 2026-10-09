@@ -6,24 +6,6 @@
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
 
-Shared::Status CurrentCar::status("CurrentCar");
-CurrentCar::Snapshot CurrentCar::snapshot;
-CurrentCar::PlateValues CurrentCar::plateEdit;
-std::atomic_bool CurrentCar::plateDirty{false};
-
-std::atomic_bool CurrentCar::freezeEngineHealth{false};
-std::atomic_bool CurrentCar::freezeFuel{false};
-std::atomic_bool CurrentCar::freezeWaterTemp{false};
-std::atomic_bool CurrentCar::freezeOilTemp{false};
-std::atomic_bool CurrentCar::freezeBrakeTemp{false};
-std::atomic_bool CurrentCar::freezeNos{false};
-std::atomic<float> CurrentCar::frozenEngineHealth{0.0f};
-std::atomic<float> CurrentCar::frozenFuel{0.0f};
-std::atomic<float> CurrentCar::frozenWaterTemp{kEngineHeatWater};
-std::atomic<float> CurrentCar::frozenOilTemp{kEngineHeatOil};
-std::atomic<float> CurrentCar::frozenBrakeTemp{0.0f};
-std::atomic<float> CurrentCar::frozenNos{0.0f};
-
 // Apply actions
 
 void CurrentCar::ApplyDrivetrain(int index) {

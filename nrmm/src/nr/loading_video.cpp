@@ -11,24 +11,6 @@
 #include <filesystem>
 #include <random>
 
-Shared::Status LoadingVideo::status("LoadingVideo");
-std::mutex LoadingVideo::listMutex;
-std::vector<LoadingVideo::File> LoadingVideo::files;
-std::atomic_bool LoadingVideo::listLoaded{ false };
-std::mutex LoadingVideo::pathMutex;
-std::string LoadingVideo::selectedPath;
-Il2CppObject* LoadingVideo::dashboard = nullptr;
-Il2CppObject* LoadingVideo::player = nullptr;
-Il2CppObject* LoadingVideo::clipSource = nullptr;
-Il2CppObject* LoadingVideo::loadingSong = nullptr;
-bool LoadingVideo::loadingSongHidden = false;
-Il2CppObject* LoadingVideo::appliedPlayer = nullptr;
-std::string LoadingVideo::appliedUri;
-bool LoadingVideo::overrideApplied = false;
-bool LoadingVideo::shutDown = false;
-std::string LoadingVideo::chosenPath;
-bool LoadingVideo::prevLoadActive = false;
-
 // Path and naming helpers
 
 std::string LoadingVideo::WideToUtf8(const std::wstring& value) {

@@ -18,20 +18,6 @@
 
 // Hook state
 
-Hooks::GodConstantUpdateFn Hooks::originalGodConstantUpdate = nullptr;
-void* Hooks::updateHookTarget = nullptr;
-std::atomic_bool Hooks::updateHookInstalled{ false };
-
-Hooks::DoesCarPassRestrictionFn Hooks::originalDoesCarPassRestriction = nullptr;
-void* Hooks::restrictionHookTarget = nullptr;
-std::atomic_bool Hooks::restrictionHookInstalled{ false };
-
-Hooks::DoesPlayerMeetCrewSpecFn Hooks::originalDoesPlayerMeetCrewSpec = nullptr;
-void* Hooks::crewSpecHookTarget = nullptr;
-std::atomic_bool Hooks::crewSpecHookInstalled{ false };
-
-std::atomic_int Hooks::inFlight{ 0 };
-
 // MinHook plumbing shared by every detour
 
 bool Hooks::EnableDetour(void* target, void* detour, void** original, const char* name) {

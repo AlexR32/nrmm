@@ -5,27 +5,25 @@
 #include "console.h"
 #include <cstdlib>
 
-namespace {
-    std::string Trim(const std::string& value) {
-        const std::size_t first = value.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos) return {};
-        const std::size_t last = value.find_last_not_of(" \t\r\n");
-        return value.substr(first, last - first + 1);
-    }
+std::string Config::Trim(const std::string& value) {
+    const std::size_t first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return {};
+    const std::size_t last = value.find_last_not_of(" \t\r\n");
+    return value.substr(first, last - first + 1);
+}
 
-    bool ParseBool(const std::string& value, bool fallback) {
-        if (value == "1" || value == "true" || value == "on") return true;
-        if (value == "0" || value == "false" || value == "off") return false;
-        return fallback;
-    }
+bool Config::ParseBool(const std::string& value, bool fallback) {
+    if (value == "1" || value == "true" || value == "on") return true;
+    if (value == "0" || value == "false" || value == "off") return false;
+    return fallback;
+}
 
-    bool ParseKey(const std::string& value, int& out) {
-        char* end = nullptr;
-        const long parsed = std::strtol(value.c_str(), &end, 10);
-        if (end == value.c_str() || parsed < 1 || parsed > 254) return false;
-        out = static_cast<int>(parsed);
-        return true;
-    }
+bool Config::ParseKey(const std::string& value, int& out) {
+    char* end = nullptr;
+    const long parsed = std::strtol(value.c_str(), &end, 10);
+    if (end == value.c_str() || parsed < 1 || parsed > 254) return false;
+    out = static_cast<int>(parsed);
+    return true;
 }
 
 std::wstring Config::GetPath() {
