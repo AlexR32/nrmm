@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 
 #include "backends/d3d11.h"
-#include "core/logger.h"
+#include "core/console.h"
 #include "core/menu.h"
 #include "il2cpp/il2cpp.h"
 #include "nr/hooks.h"
@@ -19,19 +19,19 @@ static std::wstring GetDllPath(HMODULE hModule) {
 }
 
 static DWORD WINAPI WaitForImGuiThread(LPVOID) {
-    Logger::Log("Waiting for the Direct3D Present hook...");
+    Console::Log("Waiting for the Direct3D Present hook...");
 
     while (g_Running.load(std::memory_order_acquire) && !D3D11Hook::initialized)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     if (!g_Running.load(std::memory_order_acquire)) return 0;
 
-    Logger::Log("Direct3D initialized");
-    Logger::Log("Initializing menu...");
+    Console::Log("Direct3D initialized");
+    Console::Log("Initializing menu...");
 
     Menu::Initialize();
 
-    Logger::Log("Menu initialized successfully");
+    Console::Log("Menu initialized successfully");
     return 0;
 }
 
@@ -60,15 +60,15 @@ static DWORD WINAPI MainThread(LPVOID hModule) {
 
     g_DllPath = GetDllPath(g_hModule);
 
-    Logger::Initialize(g_DllPath, L"nrmm");
-    Logger::SetVisibility(false);
+    Console::Initialize(g_DllPath, L"nrmm");
+    Console::SetVisibility(false);
 
     g_Running.store(true, std::memory_order_release);
 
     g_imguiThread = CreateThread(nullptr, 0, WaitForImGuiThread, nullptr, 0, nullptr);
 
     if (!g_imguiThread) {
-        Logger::Log("Failed to create ImGui waiting thread");
+        Console::Log("Failed to create ImGui waiting thread");
         g_Running.store(false, std::memory_order_release);
     }
 
@@ -96,7 +96,7 @@ static DWORD WINAPI MainThread(LPVOID hModule) {
     D3D11Hook::Cleanup();
     Menu::Shutdown();
     MH_Uninitialize();
-    Logger::Cleanup();
+    Console::Cleanup();
     FreeLibraryAndExitThread(g_hModule, EXIT_SUCCESS);
     return EXIT_SUCCESS;
 }

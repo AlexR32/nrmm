@@ -28,7 +28,7 @@
     <ClInclude Include="src\backends\d3d11.h" />
     <ClInclude Include="src\core\config.h" />
     <ClInclude Include="src\core\input_block.h" />
-    <ClInclude Include="src\core\logger.h" />
+    <ClInclude Include="src\core\console.h" />
     <ClInclude Include="src\core\menu.h" />
     <ClInclude Include="src\core\overlay.h" />
     <ClInclude Include="src\globals.h" />
@@ -97,7 +97,7 @@
     <ClCompile Include="src\backends\d3d11.cpp" />
     <ClCompile Include="src\core\config.cpp" />
     <ClCompile Include="src\core\input_block.cpp" />
-    <ClCompile Include="src\core\logger.cpp" />
+    <ClCompile Include="src\core\console.cpp" />
     <ClCompile Include="src\core\menu.cpp" />
     <ClCompile Include="src\dllmain.cpp" />
     <ClCompile Include="src\il2cpp\il2cpp.cpp" />

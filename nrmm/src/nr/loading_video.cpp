@@ -4,7 +4,7 @@
 #include "core/config.h"
 #include "globals.h"
 #include "il2cpp/main_thread.h"
-#include "core/logger.h"
+#include "core/console.h"
 
 #include <algorithm>
 #include <cwctype>

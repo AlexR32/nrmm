@@ -2,7 +2,7 @@
 #include "config.h"
 #include "globals.h"
 #include "input_block.h"
-#include "logger.h"
+#include "console.h"
 #include <cstdlib>
 
 namespace {
@@ -72,7 +72,7 @@ void Config::Load() {
 
     // Push the loaded (or default) state into the live systems.
     InputBlock::SetKeyboardBlock(BlockKeyboard());
-    Logger::SetVisibility(DebugConsole());
+    Console::SetVisibility(DebugConsole());
 }
 
 void Config::Save() {
@@ -99,7 +99,7 @@ void Config::SetBlockKeyboard(bool enabled) {
 
 void Config::SetDebugConsole(bool enabled) {
     debugConsole.store(enabled, std::memory_order_relaxed);
-    Logger::SetVisibility(enabled);
+    Console::SetVisibility(enabled);
     Save();
 }
 

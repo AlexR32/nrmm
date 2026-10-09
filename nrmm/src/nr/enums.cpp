@@ -4,7 +4,7 @@
 #include "shared.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
-#include "core/logger.h"
+#include "core/console.h"
 
 std::vector<Il2Cpp::EnumMember> Enums::lists[static_cast<size_t>(Enums::Id::Count)];
 std::atomic_bool Enums::loaded{false};
@@ -30,15 +30,15 @@ void Enums::LoadAllInline() {
 
         Il2CppClass* klass = Il2Cpp::FindClass(className);
         if (!klass) {
-            Logger::Log(std::string("[Enums] Enum not found: ") + className);
+            Console::Log(std::string("[Enums] Enum not found: ") + className);
             continue;
         }
 
         lists[i] = Il2Cpp::GetEnumMembers(klass);
         if (lists[i].empty()) {
-            Logger::Log(std::string("[Enums] No values for enum: ") + className);
+            Console::Log(std::string("[Enums] No values for enum: ") + className);
         } else {
-            Logger::Log("[Enums] Loaded " + std::to_string(lists[i].size()) + " values for " + className);
+            Console::Log("[Enums] Loaded " + std::to_string(lists[i].size()) + " values for " + className);
         }
     }
 }

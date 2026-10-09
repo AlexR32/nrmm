@@ -2,7 +2,7 @@
 
 #include "shared.h"
 #include "il2cpp/il2cpp.h"
-#include "core/logger.h"
+#include "core/console.h"
 
 #include <algorithm>
 
@@ -11,7 +11,7 @@ void Shared::Status::Set(const std::string& message) {
         std::lock_guard<std::mutex> lock(mutex);
         text = message;
     }
-    Logger::Log(std::string("[") + tag + "] " + message);
+    Console::Log(std::string("[") + tag + "] " + message);
 }
 
 std::string Shared::Status::Get() const {
@@ -131,13 +131,13 @@ void Shared::DestroyObject(Il2CppObject* object) {
 
     Il2CppClass* objectClass = Il2Cpp::FindClass("UnityEngine.Object", Il2Cpp::GetImage("UnityEngine.CoreModule"));
     if (!objectClass) {
-        Logger::Log("[Shared] UnityEngine.Object not found");
+        Console::Log("[Shared] UnityEngine.Object not found");
         return;
     }
 
     const MethodInfo* destroy = Il2Cpp::GetMethod(objectClass, "Destroy", 1);
     if (!destroy) {
-        Logger::Log("[Shared] Object.Destroy not found");
+        Console::Log("[Shared] Object.Destroy not found");
         return;
     }
 

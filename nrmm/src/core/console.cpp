@@ -1,8 +1,8 @@
 #include <pch.h>
-#include "logger.h"
+#include "console.h"
 #include <ctime>
 
-ImVec4 Logger::ToImVec4(Color color) {
+ImVec4 Console::ToImVec4(Color color) {
     switch (color) {
     case Color::Red: return ImVec4(1.00f, 0.35f, 0.35f, 1.0f);
     case Color::Green: return ImVec4(0.40f, 1.00f, 0.40f, 1.0f);
@@ -17,7 +17,7 @@ ImVec4 Logger::ToImVec4(Color color) {
     }
 }
 
-std::string Logger::GetTimestamp() {
+std::string Console::GetTimestamp() {
     const std::time_t now = std::time(nullptr);
     std::tm localTime{};
     localtime_s(&localTime, &now);
@@ -29,7 +29,7 @@ std::string Logger::GetTimestamp() {
     return std::string(buffer);
 }
 
-std::string Logger::WideToUtf8(const wchar_t* message) {
+std::string Console::WideToUtf8(const wchar_t* message) {
     if (!message) return {};
 
     const int size = WideCharToMultiByte(CP_UTF8, 0, message, -1, nullptr, 0, nullptr, nullptr);
@@ -41,14 +41,14 @@ std::string Logger::WideToUtf8(const wchar_t* message) {
     return utf8;
 }
 
-void Logger::WriteToFile(const char* message) {
+void Console::WriteToFile(const char* message) {
     if (!logFile.is_open() || !message) return;
 
     logFile << GetTimestamp() << message << '\n';
     logFile.flush();
 }
 
-void Logger::WriteToFile(const wchar_t* message) {
+void Console::WriteToFile(const wchar_t* message) {
     if (!logFile.is_open() || !message) return;
 
     const std::string utf8 = WideToUtf8(message);
@@ -58,7 +58,7 @@ void Logger::WriteToFile(const wchar_t* message) {
     logFile.flush();
 }
 
-void Logger::Initialize(const std::wstring& logDirectory, const std::wstring& fileName) {
+void Console::Initialize(const std::wstring& logDirectory, const std::wstring& fileName) {
     std::lock_guard<std::mutex> lock(logMutex);
 
     if (!logFile.is_open()) {
@@ -81,7 +81,7 @@ void Logger::Initialize(const std::wstring& logDirectory, const std::wstring& fi
     }
 }
 
-void Logger::Cleanup() {
+void Console::Cleanup() {
     std::lock_guard<std::mutex> lock(logMutex);
 
     if (logFile.is_open()) {
@@ -95,19 +95,19 @@ void Logger::Cleanup() {
     visible.store(false, std::memory_order_relaxed);
 }
 
-void Logger::SetVisibility(bool show) {
+void Console::SetVisibility(bool show) {
     visible.store(show, std::memory_order_relaxed);
 }
 
-bool Logger::GetVisibility() {
+bool Console::GetVisibility() {
     return visible.load(std::memory_order_relaxed);
 }
 
-const std::wstring& Logger::GetLogFilePath() {
+const std::wstring& Console::GetLogFilePath() {
     return logFilePath;
 }
 
-void Logger::Clear() {
+void Console::Clear() {
     std::lock_guard<std::mutex> lock(logMutex);
     entries.clear();
     lastRenderedCount = 0;
@@ -115,7 +115,7 @@ void Logger::Clear() {
 
 // Simple logging narrow
 
-void Logger::Log(const char* message, Color color) {
+void Console::Log(const char* message, Color color) {
     if (!message) return;
     std::lock_guard<std::mutex> lock(logMutex);
 
@@ -126,13 +126,13 @@ void Logger::Log(const char* message, Color color) {
     WriteToFile(message);
 }
 
-void Logger::Log(const std::string& message, Color color) {
+void Console::Log(const std::string& message, Color color) {
     Log(message.c_str(), color);
 }
 
 // Simple logging wide
 
-void Logger::Log(const wchar_t* message, Color color) {
+void Console::Log(const wchar_t* message, Color color) {
     if (!message) return;
     std::lock_guard<std::mutex> lock(logMutex);
 
@@ -146,11 +146,11 @@ void Logger::Log(const wchar_t* message, Color color) {
     WriteToFile(message);
 }
 
-void Logger::Log(const std::wstring& message, Color color) {
+void Console::Log(const std::wstring& message, Color color) {
     Log(message.c_str(), color);
 }
 
-void Logger::Render() {
+void Console::Render() {
     if (!visible.load(std::memory_order_relaxed)) return;
 
     ImGui::SetNextWindowPos(kWindowPos, ImGuiCond_FirstUseEver);

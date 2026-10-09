@@ -3,7 +3,7 @@
 #include "globals.h"
 #include "menu.h"
 #include "overlay.h"
-#include "logger.h"
+#include "console.h"
 #include "input_block.h"
 #include "config.h"
 #include "nr/garage.h"
@@ -279,7 +279,7 @@ void Menu::Render() {
     ImVec2 topCenter = ImVec2({io.DisplaySize.x * 0.5f, 0.0f});
     Overlay::TextOutlinedCentered(kOverlayText, topCenter, IM_COL32(255, 255, 255, 120), IM_COL32(0, 0, 0, 120));
 
-    Logger::Render();
+    Console::Render();
 
     if (!visible) return;
 

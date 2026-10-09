@@ -2,7 +2,7 @@
 
 #include "main_thread.h"
 #include "il2cpp.h"
-#include "core/logger.h"
+#include "core/console.h"
 
 #include <sstream>
 
@@ -19,7 +19,7 @@ void MainThread::BindCurrentThread() {
 
     std::ostringstream stream;
     stream << "[MainThread] Bound script thread " << boundId;
-    Logger::Log(stream.str());
+    Console::Log(stream.str());
 }
 
 void MainThread::Pump() {

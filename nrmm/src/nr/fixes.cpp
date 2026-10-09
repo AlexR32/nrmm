@@ -3,7 +3,7 @@
 #include "fixes.h"
 #include "shared.h"
 #include "il2cpp/il2cpp.h"
-#include "core/logger.h"
+#include "core/console.h"
 
 std::atomic_bool Fixes::chassisFixed{false};
 
@@ -73,7 +73,7 @@ void Fixes::FixChassis() {
 
         if (model == kWaspModel && chassis == kSoranaHatchChassis) {
             Il2Cpp::SetInstanceFieldValue(car, "chassisType", kWaspChassis);
-            Logger::Log("[Fixes] Corrected TK_ZZ chassis type to tobimizu_wasp_1996");
+            Console::Log("[Fixes] Corrected TK_ZZ chassis type to tobimizu_wasp_1996");
         }
     }
 }

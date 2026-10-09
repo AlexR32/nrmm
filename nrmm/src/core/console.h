@@ -11,7 +11,7 @@
 #include <cstddef>
 #include "libs/imgui/imgui.h"
 
-class Logger {
+class Console {
 public:
     enum class Color : WORD {
         Default = 7, // FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
@@ -52,7 +52,7 @@ private:
     static void WriteToFile(const wchar_t* message);
 
 public:
-    Logger() = delete;
+    Console() = delete;
 
     // Opens "<logDirectory>\<fileName>.log" for writing, purging any existing contents.
     // The path is kept wide so directories containing non-ASCII (e.g. Cyrillic) characters work.

@@ -66,7 +66,7 @@
     <ClInclude Include="src\core\input_block.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\logger.h">
+    <ClInclude Include="src\core\console.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\menu.h">
@@ -123,6 +123,9 @@
     <ClInclude Include="src\pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\nr\music.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="libs\imgui\imgui.cpp">
@@ -167,7 +170,7 @@
     <ClCompile Include="src\core\input_block.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\logger.cpp">
+    <ClCompile Include="src\core\console.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\menu.cpp">
@@ -213,6 +216,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nr\music.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -4,7 +4,7 @@
 #include "shared.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
-#include "core/logger.h"
+#include "core/console.h"
 
 Shared::Status Auction::status("Auction");
 Auction::Snapshot Auction::snapshot;

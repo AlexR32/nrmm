@@ -14,7 +14,7 @@
 #include "backends/d3d11.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
-#include "core/logger.h"
+#include "core/console.h"
 
 // Hook state
 
@@ -36,18 +36,18 @@ std::atomic_int Hooks::inFlight{ 0 };
 
 bool Hooks::EnableDetour(void* target, void* detour, void** original, const char* name) {
     if (MH_CreateHook(target, detour, original) != MH_OK) {
-        Logger::Logf("[Hooks] Failed to create the {} hook", name);
+        Console::Logf("[Hooks] Failed to create the {} hook", name);
         return false;
     }
 
     if (MH_EnableHook(target) != MH_OK) {
-        Logger::Logf("[Hooks] Failed to enable the {} hook", name);
+        Console::Logf("[Hooks] Failed to enable the {} hook", name);
         MH_RemoveHook(target);
         *original = nullptr;
         return false;
     }
 
-    Logger::Logf("[Hooks] {} hooked", name);
+    Console::Logf("[Hooks] {} hooked", name);
     return true;
 }
 

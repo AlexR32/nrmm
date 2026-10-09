@@ -4,7 +4,7 @@
 #include "shared.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
-#include "core/logger.h"
+#include "core/console.h"
 
 Shared::Status Garage::status("Garage");
 Shared::Sequence Garage::spawn;
@@ -23,7 +23,7 @@ Garage::SpawnOverrides Garage::spawnOverrides;
 // Helper to set car overrides
 bool Garage::SetCarField(Il2CppObject* targetCar, const char* fieldName, float value) {
     if (Il2Cpp::SetInstanceFieldValue(targetCar, fieldName, value)) return true;
-    Logger::Log(std::string("[Garage] Field not found: ") + fieldName);
+    Console::Log(std::string("[Garage] Field not found: ") + fieldName);
     return false;
 }
 
@@ -33,7 +33,7 @@ void Garage::ApplyPaint(Il2CppObject* targetCar, const SpawnOverrides& overrides
     if (!package) {
         package = Il2Cpp::NewObject(Il2Cpp::FindClass("Car_PaintPackage"));
         if (!package || !Il2Cpp::SetInstanceFieldObject(targetCar, "paint_package", package)) {
-            Logger::Log("[Garage] Could not read or create paint_package");
+            Console::Log("[Garage] Could not read or create paint_package");
             return;
         }
     }
@@ -42,14 +42,14 @@ void Garage::ApplyPaint(Il2CppObject* targetCar, const SpawnOverrides& overrides
     if (!mainPaint) {
         mainPaint = Il2Cpp::NewObject(Il2Cpp::FindClass("Car_Paint"));
         if (!mainPaint || !Il2Cpp::SetInstanceFieldObject(package, "carPaint_main", mainPaint)) {
-            Logger::Log("[Garage] Could not read or create carPaint_main");
+            Console::Log("[Garage] Could not read or create carPaint_main");
             return;
         }
     }
 
     Shared::Colour colour = {overrides.paint[0], overrides.paint[1], overrides.paint[2], 1.0f};
     if (!Il2Cpp::SetInstanceFieldValue(mainPaint, "main_colour", colour)) {
-        Logger::Log("[Garage] Field not found: main_colour");
+        Console::Log("[Garage] Field not found: main_colour");
     }
 }
 
