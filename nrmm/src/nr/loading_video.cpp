@@ -2,67 +2,11 @@
 
 #include "loading_video.h"
 #include "core/config.h"
-#include "globals.h"
 #include "il2cpp/main_thread.h"
 #include "core/console.h"
 
 #include <algorithm>
-#include <cwctype>
-#include <filesystem>
 #include <random>
-
-// Path and naming helpers
-
-std::string LoadingVideo::WideToUtf8(const std::wstring& value) {
-    if (value.empty()) return {};
-    const int size = WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
-    if (size <= 0) return {};
-    std::string out(static_cast<size_t>(size), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), out.data(), size, nullptr, nullptr);
-    return out;
-}
-
-bool LoadingVideo::IsSupportedExtension(const std::wstring& extension) {
-    std::wstring lower;
-    lower.reserve(extension.size());
-    for (wchar_t c : extension) lower += static_cast<wchar_t>(towlower(c));
-    return lower == L".mp4" || lower == L".m4v" || lower == L".mov" || lower == L".webm";
-}
-
-// Unity's VideoPlayer.url accepts a file:/// URI. Paths may contain spaces or
-// non-ASCII characters, so everything outside the URI unsafe set is
-// percent-encoded
-std::string LoadingVideo::ToFileUri(const std::string& utf8Path) {
-    static const char* hex = "0123456789ABCDEF";
-
-    std::string uri = "file:///";
-    uri.reserve(utf8Path.size() + 8);
-
-    for (unsigned char c : utf8Path) {
-        if (c == '\\') {
-            uri += '/';
-        } else if (c == '/' || c == ':' || c == '-' || c == '_' || c == '.' || c == '~' ||
-                   (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
-            uri += static_cast<char>(c);
-        } else {
-            uri += '%';
-            uri += hex[c >> 4];
-            uri += hex[c & 0x0F];
-        }
-    }
-    return uri;
-}
-
-std::string LoadingVideo::FileName(const std::string& utf8Path) {
-    const size_t slash = utf8Path.find_last_of("\\/");
-    return slash == std::string::npos ? utf8Path : utf8Path.substr(slash + 1);
-}
-
-std::wstring LoadingVideo::FolderPath() {
-    std::wstring directory = g_DllPath.empty() ? L"." : g_DllPath;
-    if (!directory.empty() && directory.back() != L'\\' && directory.back() != L'/') directory += L'\\';
-    return directory + L"videos";
-}
 
 // Reflection handles
 
@@ -85,28 +29,7 @@ LoadingVideo::VideoPlayerApi& LoadingVideo::Api() {
 // File list
 
 void LoadingVideo::Reload() {
-    std::vector<File> found;
-
-    std::error_code error;
-    const std::wstring folder = FolderPath();
-    std::filesystem::create_directories(folder, error);
-
-    std::filesystem::directory_iterator iterator(folder, error);
-    if (!error) {
-        for (const std::filesystem::directory_entry& entry : iterator) {
-            std::error_code entryError;
-            if (!entry.is_regular_file(entryError)) continue;
-            if (!IsSupportedExtension(entry.path().extension().wstring())) continue;
-
-            File file;
-            file.path = WideToUtf8(entry.path().wstring());
-            file.fileName = WideToUtf8(entry.path().filename().wstring());
-            file.name = WideToUtf8(entry.path().stem().wstring());
-            found.push_back(std::move(file));
-        }
-    }
-
-    std::sort(found.begin(), found.end(), [](const File& a, const File& b) { return a.name < b.name; });
+    std::vector<Shared::MediaFile> found = Shared::ScanMediaFolder(L"videos", { L".mp4", L".m4v", L".mov", L".webm" });
 
     size_t count = 0;
     {
@@ -118,7 +41,7 @@ void LoadingVideo::Reload() {
 
     // Keep the configured file selected when it is still present, otherwise
     // fall back to the first entry (without overwriting the config)
-    std::vector<File> snapshot;
+    std::vector<Shared::MediaFile> snapshot;
     {
         std::lock_guard<std::mutex> lock(listMutex);
         snapshot = files;
@@ -242,7 +165,7 @@ void LoadingVideo::Apply(Il2CppObject* target, const std::string& uri) {
 
         appliedPlayer = target;
         appliedUri = uri;
-        status.Set("Loading video: " + FileName(uri));
+        status.Set("Video loaded: " + Shared::FileName(uri));
     }
 
     overrideApplied = true;
@@ -392,7 +315,7 @@ void LoadingVideo::Pump() {
         return;
     }
 
-    Apply(target, ToFileUri(path));
+    Apply(target, Shared::ToFileUri(path));
 
     if (overrideApplied) {
         HideClipSource();
@@ -424,7 +347,7 @@ void LoadingVideo::RenderTab() {
     if (ImGui::SmallButton("Reload folder")) Reload();
     ImGui::SameLine();
 
-    std::vector<File> snapshot;
+    std::vector<Shared::MediaFile> snapshot;
     std::string current;
     {
         std::lock_guard<std::mutex> lock(listMutex);

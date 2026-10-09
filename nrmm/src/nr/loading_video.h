@@ -41,12 +41,6 @@ public:
     static void Shutdown();
 
 private:
-    struct File {
-        std::string name;     // stem, shown in the combo
-        std::string fileName; // file name with extension, persisted in the config
-        std::string path;     // UTF-8 filesystem path
-    };
-
     // Cached reflection handles for UnityEngine.Video.VideoPlayer
     struct VideoPlayerApi {
         Il2CppClass* klass = nullptr;
@@ -56,9 +50,6 @@ private:
         const MethodInfo* setLoop = nullptr;
         const MethodInfo* getClip = nullptr;
     };
-
-    // Folder next to the DLL that holds the user's video files
-    static std::wstring FolderPath();
 
     // Rebuilds the file list. Filesystem only, so it is safe on any thread
     static void Reload();
@@ -99,16 +90,11 @@ private:
 
     static VideoPlayerApi& Api();
 
-    static std::string WideToUtf8(const std::wstring& value);
-    static bool IsSupportedExtension(const std::wstring& extension);
-    static std::string ToFileUri(const std::string& utf8Path);
-    static std::string FileName(const std::string& utf8Path);
-
     inline static Shared::Status status{"LoadingVideo"};
 
     // File list, published by the render thread under listMutex
     inline static std::mutex listMutex;
-    inline static std::vector<File> files;
+    inline static std::vector<Shared::MediaFile> files;
     inline static std::atomic_bool listLoaded{false};
 
     // Selected file path, published to Pump() under pathMutex

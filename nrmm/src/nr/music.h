@@ -40,11 +40,6 @@ public:
 private:
     enum class Action : int { None = 0, Play, Stop, Pause, Resume, Next, Prev };
 
-    struct Track {
-        std::string name;
-        std::string path; // UTF-8 filesystem path
-    };
-
     // Cached reflection handles for the Unity and game types the tab needs
     struct AudioSourceApi {
         Il2CppClass* klass = nullptr;
@@ -66,9 +61,6 @@ private:
         const MethodInfo* send = nullptr;
         const MethodInfo* dispose = nullptr;
     };
-
-    // Folder next to the DLL that holds the user's audio files
-    static std::wstring FolderPath();
 
     // Rebuilds the track list. Filesystem only, so it is safe on the render thread
     static void Reload();
@@ -135,11 +127,7 @@ private:
 
     static std::string CurrentName();
 
-    // Path and naming helpers
-    static std::string WideToUtf8(const std::wstring& value);
-    static bool IsSupportedExtension(const std::wstring& extension);
     static int AudioTypeForPath(const std::string& path);
-    static std::string ToFileUri(const std::string& utf8Path);
 
     static int NextIndex(int current, int count, bool randomize);
     static int PrevIndex(int current, int count, bool randomize);
@@ -151,7 +139,7 @@ private:
 
     // Track list, published by the render thread under listMutex
     inline static std::mutex listMutex;
-    inline static std::vector<Track> tracks;
+    inline static std::vector<Shared::MediaFile> tracks;
     inline static std::atomic_bool listLoaded{false};
 
     // Render-thread widgets and queue

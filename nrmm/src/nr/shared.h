@@ -5,6 +5,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <initializer_list>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -65,6 +66,32 @@ public:
         bool active = false;
         std::string failure;
     };
+
+    // A file the user dropped into a media folder next to nrmm.dll. name is the
+    // stem shown in combos, fileName is the full name with extension (persisted
+    // in configs) and path is the UTF-8 filesystem path
+    struct MediaFile {
+        std::string name;
+        std::string fileName;
+        std::string path;
+    };
+
+    // Scans <dll>/<folder> for regular files whose extension is one of
+    // extensions (matched case-insensitively), creating the folder when missing.
+    // Returns the matches sorted by name. Filesystem only, so it is safe on any
+    // thread
+    static std::vector<MediaFile> ScanMediaFolder(const wchar_t* folder, std::initializer_list<const wchar_t*> extensions);
+
+    // UTF-8 conversion that keeps non-ASCII characters intact
+    static std::string WideToUtf8(const std::wstring& value);
+
+    // The "file" part of a UTF-8 path, without directories
+    static std::string FileName(const std::string& utf8Path);
+
+    // Unity URI for a local file: backslashes become forward slashes. The path
+    // is deliberately not percent-encoded, because VideoPlayer.url does not
+    // percent-decode while UnityWebRequest does, so raw UTF-8 works for both
+    static std::string ToFileUri(const std::string& utf8Path);
 
     static void RenderLabel(const char* text);
 

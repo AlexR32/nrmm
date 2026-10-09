@@ -1,31 +1,12 @@
 #include "pch.h"
 
 #include "music.h"
-#include "globals.h"
 #include "il2cpp/main_thread.h"
 #include "core/console.h"
 
 #include <algorithm>
-#include <cwctype>
-#include <filesystem>
 
 // Path and naming helpers
-
-std::string Music::WideToUtf8(const std::wstring& value) {
-    if (value.empty()) return {};
-    const int size = WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
-    if (size <= 0) return {};
-    std::string out(static_cast<size_t>(size), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), out.data(), size, nullptr, nullptr);
-    return out;
-}
-
-bool Music::IsSupportedExtension(const std::wstring& extension) {
-    std::wstring lower;
-    lower.reserve(extension.size());
-    for (wchar_t c : extension) lower += static_cast<wchar_t>(towlower(c));
-    return lower == L".wav" || lower == L".mp3" || lower == L".ogg" || lower == L".aiff" || lower == L".aif";
-}
 
 // Unity's AudioType values, taken from the game's own enum
 int Music::AudioTypeForPath(const std::string& path) {
@@ -39,15 +20,6 @@ int Music::AudioTypeForPath(const std::string& path) {
     }
     if (lower.size() >= 5 && lower.substr(lower.size() - 5) == ".aiff") return 2; // AIFF
     return 20; // WAV
-}
-
-// UnityWebRequest needs a URI, and local files use the file:/// scheme with
-// forward slashes
-std::string Music::ToFileUri(const std::string& utf8Path) {
-    std::string uri = "file:///";
-    uri.reserve(utf8Path.size() + 8);
-    for (char c : utf8Path) uri += (c == '\\') ? '/' : c;
-    return uri;
 }
 
 int Music::NextIndex(int current, int count, bool randomize) {
@@ -109,36 +81,10 @@ Music::RequestApi& Music::RequestApiFor() {
     return api;
 }
 
-// Folder / track list
-
-std::wstring Music::FolderPath() {
-    std::wstring directory = g_DllPath.empty() ? L"." : g_DllPath;
-    if (directory.back() != L'\\' && directory.back() != L'/') directory += L'\\';
-    return directory + L"music";
-}
+// Track list
 
 void Music::Reload() {
-    std::vector<Track> found;
-
-    std::error_code error;
-    const std::wstring folder = FolderPath();
-    std::filesystem::create_directories(folder, error);
-
-    std::filesystem::directory_iterator iterator(folder, error);
-    if (!error) {
-        for (const std::filesystem::directory_entry& entry : iterator) {
-            std::error_code entryError;
-            if (!entry.is_regular_file(entryError)) continue;
-            if (!IsSupportedExtension(entry.path().extension().wstring())) continue;
-
-            Track track;
-            track.path = WideToUtf8(entry.path().wstring());
-            track.name = WideToUtf8(entry.path().stem().wstring());
-            found.push_back(std::move(track));
-        }
-    }
-
-    std::sort(found.begin(), found.end(), [](const Track& a, const Track& b) { return a.name < b.name; });
+    std::vector<Shared::MediaFile> found = Shared::ScanMediaFolder(L"music", { L".wav", L".mp3", L".ogg", L".aiff", L".aif" });
 
     size_t count = 0;
     {
@@ -513,7 +459,7 @@ void Music::CancelLoad() {
 }
 
 void Music::StartLoad(int index, bool resetPosition) {
-    Track track;
+    Shared::MediaFile track;
     size_t count = 0;
     {
         std::lock_guard<std::mutex> lock(listMutex);
@@ -542,7 +488,7 @@ void Music::StartLoad(int index, bool resetPosition) {
         return;
     }
 
-    const std::string uri = ToFileUri(track.path);
+    const std::string uri = Shared::ToFileUri(track.path);
     int audioType = AudioTypeForPath(track.path);
 
     Il2CppString* uriString = Il2Cpp::NewString(uri.c_str());
@@ -894,7 +840,7 @@ void Music::RenderTab() {
     if (ImGui::SmallButton("Reload folder")) Reload();
     ImGui::SameLine();
 
-    std::vector<Track> snapshot;
+    std::vector<Shared::MediaFile> snapshot;
     {
         std::lock_guard<std::mutex> lock(listMutex);
         snapshot = tracks;

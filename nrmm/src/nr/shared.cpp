@@ -1,10 +1,79 @@
 #include "pch.h"
 
 #include "shared.h"
+#include "globals.h"
 #include "il2cpp/il2cpp.h"
 #include "core/console.h"
 
 #include <algorithm>
+#include <cwctype>
+#include <filesystem>
+
+// Folder next to the DLL that holds the user's media files
+static std::wstring MediaFolderPath(const wchar_t* folder) {
+    std::wstring directory = g_DllPath.empty() ? L"." : g_DllPath;
+    if (!directory.empty() && directory.back() != L'\\' && directory.back() != L'/') directory += L'\\';
+    directory += folder;
+    return directory;
+}
+
+static bool HasSupportedExtension(const std::wstring& extension, std::initializer_list<const wchar_t*> extensions) {
+    std::wstring lower;
+    lower.reserve(extension.size());
+    for (wchar_t c : extension) lower += static_cast<wchar_t>(towlower(c));
+
+    for (const wchar_t* candidate : extensions) {
+        if (lower == candidate) return true;
+    }
+    return false;
+}
+
+std::vector<Shared::MediaFile> Shared::ScanMediaFolder(const wchar_t* folder, std::initializer_list<const wchar_t*> extensions) {
+    std::vector<MediaFile> found;
+
+    std::error_code error;
+    const std::wstring path = MediaFolderPath(folder);
+    std::filesystem::create_directories(path, error);
+
+    std::filesystem::directory_iterator iterator(path, error);
+    if (!error) {
+        for (const std::filesystem::directory_entry& entry : iterator) {
+            std::error_code entryError;
+            if (!entry.is_regular_file(entryError)) continue;
+            if (!HasSupportedExtension(entry.path().extension().wstring(), extensions)) continue;
+
+            MediaFile file;
+            file.path = WideToUtf8(entry.path().wstring());
+            file.fileName = WideToUtf8(entry.path().filename().wstring());
+            file.name = WideToUtf8(entry.path().stem().wstring());
+            found.push_back(std::move(file));
+        }
+    }
+
+    std::sort(found.begin(), found.end(), [](const MediaFile& a, const MediaFile& b) { return a.name < b.name; });
+    return found;
+}
+
+std::string Shared::WideToUtf8(const std::wstring& value) {
+    if (value.empty()) return {};
+    const int size = WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
+    if (size <= 0) return {};
+    std::string out(static_cast<size_t>(size), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), out.data(), size, nullptr, nullptr);
+    return out;
+}
+
+std::string Shared::FileName(const std::string& utf8Path) {
+    const size_t slash = utf8Path.find_last_of("\\/");
+    return slash == std::string::npos ? utf8Path : utf8Path.substr(slash + 1);
+}
+
+std::string Shared::ToFileUri(const std::string& utf8Path) {
+    std::string uri = "file:///";
+    uri.reserve(utf8Path.size() + 8);
+    for (char c : utf8Path) uri += (c == '\\') ? '/' : c;
+    return uri;
+}
 
 void Shared::Status::Set(const std::string& message) {
     {
