@@ -232,6 +232,22 @@ void CurrentCar::SaveCar() {
 
 // Snapshot / tab
 
+float CurrentCar::SyncFloatField(Il2CppObject* instance, const char* fieldName, std::atomic_bool& freezeFlag, std::atomic<float>& frozenValue) {
+    float value = 0.0f;
+    const bool exists = Il2Cpp::GetInstanceFieldValue(instance, fieldName, value);
+    const bool frozen = freezeFlag.load(std::memory_order_relaxed);
+
+    if (frozen) {
+        value = frozenValue.load(std::memory_order_relaxed);
+        if (exists) Il2Cpp::SetInstanceFieldValue(instance, fieldName, value);
+    } else if (exists) {
+        // Track the live reading so enabling the freeze captures it
+        frozenValue.store(value, std::memory_order_relaxed);
+    }
+
+    return value;
+}
+
 void CurrentCar::RefreshSnapshot() {
     Il2Cpp::ThreadAttach();
 
@@ -241,109 +257,50 @@ void CurrentCar::RefreshSnapshot() {
     Il2CppObject* carData = Shared::CarData();
     Il2CppObject* carEngine = Shared::CarEngine();
 
+    snapshot.carLoaded.store(car != nullptr, std::memory_order_relaxed);
+
     if (Enums::Ready()) {
         snapshot.drivetrainIndex.store(Enums::SyncIndex(Enums::Id::Drivetrain, carData, "drivetrain"), std::memory_order_relaxed);
         snapshot.inductionTypeIndex.store(Enums::SyncIndex(Enums::Id::InductionType, carData, "inductionType"), std::memory_order_relaxed);
         snapshot.fuelTypeIndex.store(Enums::SyncIndex(Enums::Id::FuelType, carLocal, "current_fuelType"), std::memory_order_relaxed);
     }
 
-    const bool freezeHealth = freezeEngineHealth.load(std::memory_order_relaxed);
-    const bool freezeFuelOn = freezeFuel.load(std::memory_order_relaxed);
-    const bool freezeWater = freezeWaterTemp.load(std::memory_order_relaxed);
-    const bool freezeOil = freezeOilTemp.load(std::memory_order_relaxed);
-    const bool freezeBrake = freezeBrakeTemp.load(std::memory_order_relaxed);
-    const bool nosFreeze = freezeNos.load(std::memory_order_relaxed);
+    // Engine health
+    const float engineHealth = SyncFloatField(carEngine, "engineHealth", freezeEngineHealth, frozenEngineHealth);
+    snapshot.engineHealth.store(engineHealth, std::memory_order_relaxed);
 
-    float engineHealth = 0.0f;
-    const bool haveEngineHealth = carEngine && Il2Cpp::GetInstanceFieldValue(carEngine, "engineHealth", engineHealth);
-
-    float fuelTank = 0.0f;
+    // Fuel tank capacity
     float fuelTankCapacity = 0.0f;
-
-    snapshot.carLoaded.store(car != nullptr, std::memory_order_relaxed);
-
-    Il2Cpp::GetInstanceFieldValue(car, "fuelTank", fuelTank);
     Il2Cpp::GetInstanceFieldValue(car, "fuelTankCapacity", fuelTankCapacity);
+    snapshot.fuelTankCapacity.store(fuelTankCapacity, std::memory_order_relaxed);
 
-    float water = 0.0f;
-    float oil = 0.0f;
-    float brakeTemp = 0.0f;
-    if (car) {
-        Il2Cpp::GetInstanceFieldValue(car, "engineHeatWater", water);
-        Il2Cpp::GetInstanceFieldValue(car, "engineHeatOil", oil);
-    }
+    // Fuel tank
+    const float fuelTank = SyncFloatField(car, "fuelTank", freezeFuel, frozenFuel);
+    snapshot.fuelTank.store(fuelTank, std::memory_order_relaxed);
 
-    if (carLocal) {
-        Il2Cpp::GetInstanceFieldValue(carLocal, "brakeTemp", brakeTemp);
-    }
-
-    // Engine health: hold the menu target, or track the live value so enabling
-    // the freeze captures whatever the engine currently has
-    if (freezeHealth) {
-        engineHealth = frozenEngineHealth.load(std::memory_order_relaxed);
-        if (carEngine) Il2Cpp::SetInstanceFieldValue(carEngine, "engineHealth", engineHealth);
-    } else if (haveEngineHealth) {
-        frozenEngineHealth.store(engineHealth, std::memory_order_relaxed);
-    }
-
-    // Fuel
-    if (freezeFuelOn) {
-        float heldFuel = frozenFuel.load(std::memory_order_relaxed);
-        if (fuelTankCapacity > 0.0f && heldFuel > fuelTankCapacity) heldFuel = fuelTankCapacity;
-        fuelTank = heldFuel;
-        if (car) Il2Cpp::SetInstanceFieldValue(car, "fuelTank", fuelTank);
-    } else {
-        frozenFuel.store(fuelTank, std::memory_order_relaxed);
-    }
+    // Odometer target
+    const float odometerTarget = SyncFloatField(carData, "carOdometerTarget", freezeOdometer, frozenOdometer);
+    snapshot.carOdometerTarget.store(odometerTarget, std::memory_order_relaxed);
 
     // Water heat
-    if (freezeWater) {
-        water = frozenWaterTemp.load(std::memory_order_relaxed);
-        if (car) Il2Cpp::SetInstanceFieldValue(car, "engineHeatWater", water);
-    } else {
-        frozenWaterTemp.store(water, std::memory_order_relaxed);
-    }
-    // Oil heat
-    if (freezeOil) {
-        oil = frozenOilTemp.load(std::memory_order_relaxed);
-        if (car) Il2Cpp::SetInstanceFieldValue(car, "engineHeatOil", oil);
-    } else {
-        frozenOilTemp.store(oil, std::memory_order_relaxed);
-    }
-    // Brake heat
-    if (freezeBrake) {
-        brakeTemp = frozenBrakeTemp.load(std::memory_order_relaxed);
-        if (carLocal) {
-            // Brake fade is always pinned to zero so the brakes never go soft.
-            const float zero = 0.0f;
-            Il2Cpp::SetInstanceFieldValue(carLocal, "brakeTemp", brakeTemp);
-            Il2Cpp::SetInstanceFieldValue(carLocal, "brakeFade_temp", zero);
-        }
-    } else {
-        frozenBrakeTemp.store(brakeTemp, std::memory_order_relaxed);
-    }
-
-    if (haveEngineHealth || freezeHealth) snapshot.engineHealth.store(engineHealth, std::memory_order_relaxed);
-    snapshot.fuelTank.store(fuelTank, std::memory_order_relaxed);
-    snapshot.fuelTankCapacity.store(fuelTankCapacity, std::memory_order_relaxed);
+    const float water = SyncFloatField(car, "engineHeatWater", freezeWaterTemp, frozenWaterTemp);
     snapshot.engineHeatWater.store(water, std::memory_order_relaxed);
+
+    // Oil heat
+    const float oil = SyncFloatField(car, "engineHeatOil", freezeOilTemp, frozenOilTemp);
     snapshot.engineHeatOil.store(oil, std::memory_order_relaxed);
+
+    // Brake heat
+    const float brakeTemp = SyncFloatField(carLocal, "brakeTemp", freezeBrakeTemp, frozenBrakeTemp);
     snapshot.brakeTemp.store(brakeTemp, std::memory_order_relaxed);
 
     // NOS
-    float nos = 0.0f;
-    const bool haveNos = carData && Il2Cpp::GetInstanceFieldValue(carData, "NOS_fuelLevel", nos);
-    if (nosFreeze) {
-        nos = frozenNos.load(std::memory_order_relaxed);
-        if (carData) Il2Cpp::SetInstanceFieldValue(carData, "NOS_fuelLevel", nos);
-    } else if (haveNos) {
-        frozenNos.store(nos, std::memory_order_relaxed);
-    }
-    if (haveNos || nosFreeze) snapshot.nosFuelLevel.store(nos, std::memory_order_relaxed);
+    const float nos = SyncFloatField(carData, "NOS_fuelLevel", freezeNos, frozenNos);
+    snapshot.nosFuelLevel.store(nos, std::memory_order_relaxed);
 
     // Number plate
-    snapshot.plateLoaded.store(carLocal != nullptr, std::memory_order_relaxed);
-    Il2CppObject* plateInfo = carLocal ? Il2Cpp::GetInstanceFieldObject(carLocal, "localPlateInfo") : nullptr;
+    Il2CppObject* plateInfo = Il2Cpp::GetInstanceFieldObject(carLocal, "localPlateInfo");
+    snapshot.plateLoaded.store(plateInfo != nullptr, std::memory_order_relaxed);
     if (plateInfo) {
         int32_t plateType = 0, kanjiLeft = 0, kanjiTop = 0;
         int32_t top1 = 0, top2 = 0, top3 = 0;
@@ -448,6 +405,53 @@ void CurrentCar::RenderTab() {
         MainThread::Post([value]() {
             Il2CppObject* car = Shared::PlayerCar();
             if (car) Il2Cpp::SetInstanceFieldValue(car, "fuelTank", value);
+        });
+    }
+
+    // Odometer target. Changing it shifts the oil-change and dirt thresholds by
+    // the same delta, and neither threshold is allowed below the current
+    // odometer reading
+    const bool freezeOdometerOn = freezeOdometer.load(std::memory_order_relaxed);
+    renderFreeze("##freezeOdometer", freezeOdometerOn, freezeOdometer);
+    ImGui::SameLine();
+
+    float odometerTarget = freezeOdometerOn ? frozenOdometer.load(std::memory_order_relaxed) : snapshot.carOdometerTarget.load(std::memory_order_relaxed);
+    const float previousOdometerTarget = odometerTarget;
+    ImGui::SetNextItemWidth(120.0f);
+    if (ImGui::InputFloat("Odometer", &odometerTarget, 1.0f, 100.0f, "%.1f")) {
+        if (odometerTarget < 0.0f) odometerTarget = 0.0f;
+        frozenOdometer.store(odometerTarget, std::memory_order_relaxed);
+        const float newTarget = odometerTarget;
+        const float delta = newTarget - previousOdometerTarget;
+        MainThread::Post([newTarget, delta]() {
+            Il2CppObject* carData = Shared::CarData();
+            Il2CppObject* carLocal = Shared::CarLocal();
+            if (!carData) { status.Set("CarData not found"); return; }
+
+            if (!Il2Cpp::SetInstanceFieldValue(carData, "carOdometerTarget", newTarget)) {
+                status.Set("carOdometerTarget field not found");
+                return;
+            }
+
+            float oilChange = 0.0f;
+            if (Il2Cpp::GetInstanceFieldValue(carData, "odometerAtLastOilChange", oilChange)) {
+                oilChange += delta;
+                if (oilChange < 0.0f) oilChange = 0.0f;
+                if (oilChange > newTarget) oilChange = newTarget;
+                Il2Cpp::SetInstanceFieldValue(carData, "odometerAtLastOilChange", oilChange);
+            }
+
+            if (carLocal) {
+                float dirtStart = 0.0f;
+                if (Il2Cpp::GetInstanceFieldValue(carLocal, "car_dirtStartMilage", dirtStart)) {
+                    dirtStart += delta;
+                    if (dirtStart < 0.0f) dirtStart = 0.0f;
+                    if (dirtStart > newTarget) dirtStart = newTarget;
+                    Il2Cpp::SetInstanceFieldValue(carLocal, "car_dirtStartMilage", dirtStart);
+                }
+            }
+
+            status.Set("Odometer set");
         });
     }
 

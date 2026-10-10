@@ -47,6 +47,7 @@ private:
         std::atomic<float> engineHealth{0.0f};
         std::atomic<float> fuelTank{0.0f};
         std::atomic<float> fuelTankCapacity{0.0f};
+        std::atomic<float> carOdometerTarget{0.0f};
         std::atomic<float> engineHeatWater{0.0f};
         std::atomic<float> engineHeatOil{0.0f};
         std::atomic<float> brakeTemp{0.0f};
@@ -74,6 +75,8 @@ private:
 
     static void SaveCar();
 
+    static float SyncFloatField(Il2CppObject* instance, const char* fieldName, std::atomic_bool& freezeFlag, std::atomic<float>& frozenValue);
+
     // Game constants
     static constexpr float kEngineHeatWater = 50.0f;
     static constexpr float kEngineHeatOil = 55.0f;
@@ -94,10 +97,12 @@ private:
     inline static std::atomic_bool freezeOilTemp{false};
     inline static std::atomic_bool freezeBrakeTemp{false};
     inline static std::atomic_bool freezeNos{false};
+    inline static std::atomic_bool freezeOdometer{false};
     inline static std::atomic<float> frozenEngineHealth{0.0f};
     inline static std::atomic<float> frozenFuel{0.0f};
     inline static std::atomic<float> frozenWaterTemp{kEngineHeatWater};
     inline static std::atomic<float> frozenOilTemp{kEngineHeatOil};
     inline static std::atomic<float> frozenBrakeTemp{0.0f};
     inline static std::atomic<float> frozenNos{0.0f};
+    inline static std::atomic<float> frozenOdometer{0.0f};
 };
