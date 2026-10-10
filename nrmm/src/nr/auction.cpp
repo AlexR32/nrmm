@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "auction.h"
+#include "enums.h"
 #include "shared.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
@@ -94,7 +95,7 @@ void Auction::UnlockAllAuctionCars() {
         values.reserve(validChassis.size());
         for (const Il2Cpp::EnumMember& member : members) {
             if (member.name == "null_type" || member.name == "generic") continue;
-            if (validChassis.find(Shared::EnumValue(member)) == validChassis.end()) continue;
+            if (validChassis.find(Enums::EnumValue(member)) == validChassis.end()) continue;
             values.push_back(&member);
         }
         if (values.empty()) { status.Set("No spawnable chassis found"); return; }

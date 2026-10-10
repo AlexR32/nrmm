@@ -56,6 +56,19 @@ public:
     // listed
     static std::string NameOf(Id id, int32_t value, const char* fallbackPrefix);
 
+    // Renders a combo box over an enum's cached list
+    static void RenderEnumCombo(const char* label, const std::vector<Il2Cpp::EnumMember>& options, int selected, std::function<void(int)> onSelect);
+
+    // int value of an enum literal. The enums this is used with are int-backed
+    static int32_t EnumValue(const Il2Cpp::EnumMember& member);
+
+    // Enum helpers
+    // Writes an enum literal (raw bytes from Il2Cpp::GetEnumMembers) into an
+    // instance field
+    static bool SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member);
+    static int FindEnumIndex(const std::vector<Il2Cpp::EnumMember>& options, const void* raw, size_t size);
+    static void SyncEnumIndex(Il2CppObject* instance, const char* fieldName, const std::vector<Il2Cpp::EnumMember>& options, int& index);
+
 private:
     static void LoadAllInline();
     static const char* ClassName(Id id);

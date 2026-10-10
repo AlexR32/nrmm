@@ -171,21 +171,6 @@ bool Shared::BeginGameTab(const char* label) {
     return false;
 }
 
-void Shared::RenderEnumCombo(const char* label, const std::vector<Il2Cpp::EnumMember>& options, int selected, std::function<void(int)> onSelect) {
-    const char* preview = (selected >= 0 && selected < static_cast<int>(options.size())) ? options[selected].name.c_str() : "(unknown)";
-    ImGui::SetNextItemWidth(120.0f);
-    if (ImGui::BeginCombo(label, preview)) {
-        for (int i = 0; i < static_cast<int>(options.size()); ++i) {
-            const bool isSelected = (i == selected);
-            if (ImGui::Selectable(options[i].name.c_str(), isSelected)) {
-                onSelect(i);
-            }
-            if (isSelected) ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-}
-
 void Shared::DestroyObject(Il2CppObject* object) {
     if (!object) return;
 
@@ -376,11 +361,6 @@ void Shared::ListClear(Il2CppObject* list) {
     if (method) Il2Cpp::Invoke(method, list, nullptr);
 }
 
-bool Shared::SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member) {
-    if (!instance) return false;
-    return Il2Cpp::SetInstanceFieldObject(instance, fieldName, const_cast<uint8_t*>(member.raw.data()));
-}
-
 bool Shared::CollectCarOrigins(std::unordered_set<int32_t>& validChassis, std::unordered_map<int32_t, std::vector<int32_t>>& chassisByModel) {
     validChassis.clear();
     chassisByModel.clear();
@@ -443,30 +423,4 @@ bool Shared::CollectCarOrigins(std::unordered_set<int32_t>& validChassis, std::u
     }
 
     return !validChassis.empty();
-}
-
-int32_t Shared::EnumValue(const Il2Cpp::EnumMember& member) {
-    int32_t value = 0;
-    if (member.raw.size() >= sizeof(int32_t)) {
-        memcpy(&value, member.raw.data(), sizeof(int32_t));
-    }
-    return value;
-}
-
-int Shared::FindEnumIndex(const std::vector<Il2Cpp::EnumMember>& options, const void* raw, size_t size) {
-    for (size_t i = 0; i < options.size(); ++i) {
-        if (options[i].raw.size() == size && memcmp(options[i].raw.data(), raw, size) == 0) {
-            return static_cast<int>(i);
-        }
-    }
-    return -1;
-}
-
-void Shared::SyncEnumIndex(Il2CppObject* instance, const char* fieldName, const std::vector<Il2Cpp::EnumMember>& options, int& index) {
-    index = -1;
-    if (!instance) return;
-
-    int32_t value = 0;
-    Il2Cpp::GetInstanceFieldValue(instance, fieldName, value);
-    index = FindEnumIndex(options, &value, sizeof(value));
 }

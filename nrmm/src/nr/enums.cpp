@@ -1,7 +1,6 @@
 #include "pch.h"
 
 #include "enums.h"
-#include "shared.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
 #include "core/console.h"
@@ -71,12 +70,12 @@ const std::vector<Il2Cpp::EnumMember>& Enums::HouseSaveIds() { return Get(Id::Ho
 const std::vector<Il2Cpp::EnumMember>& Enums::PlateTypes() { return Get(Id::NumberPlateType); }
 
 int Enums::IndexOf(Id id, const void* raw, size_t size) {
-    return Shared::FindEnumIndex(Get(id), raw, size);
+    return FindEnumIndex(Get(id), raw, size);
 }
 
 int Enums::SyncIndex(Id id, Il2CppObject* instance, const char* fieldName) {
     int index = -1;
-    Shared::SyncEnumIndex(instance, fieldName, Get(id), index);
+    SyncEnumIndex(instance, fieldName, Get(id), index);
     return index;
 }
 
@@ -84,4 +83,50 @@ std::string Enums::NameOf(Id id, int32_t value, const char* fallbackPrefix) {
     const int index = IndexOf(id, &value, sizeof(value));
     if (index >= 0) return Get(id)[index].name;
     return std::string(fallbackPrefix ? fallbackPrefix : "") + std::to_string(value);
+}
+
+void Enums::RenderEnumCombo(const char* label, const std::vector<Il2Cpp::EnumMember>& options, int selected, std::function<void(int)> onSelect) {
+    const char* preview = (selected >= 0 && selected < static_cast<int>(options.size())) ? options[selected].name.c_str() : "(unknown)";
+    ImGui::SetNextItemWidth(120.0f);
+    if (ImGui::BeginCombo(label, preview)) {
+        for (int i = 0; i < static_cast<int>(options.size()); ++i) {
+            const bool isSelected = (i == selected);
+            if (ImGui::Selectable(options[i].name.c_str(), isSelected)) {
+                onSelect(i);
+            }
+            if (isSelected) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+}
+
+int32_t Enums::EnumValue(const Il2Cpp::EnumMember& member) {
+    int32_t value = 0;
+    if (member.raw.size() >= sizeof(int32_t)) {
+        memcpy(&value, member.raw.data(), sizeof(int32_t));
+    }
+    return value;
+}
+
+bool Enums::SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member) {
+    if (!instance) return false;
+    return Il2Cpp::SetInstanceFieldObject(instance, fieldName, const_cast<uint8_t*>(member.raw.data()));
+}
+
+int Enums::FindEnumIndex(const std::vector<Il2Cpp::EnumMember>& options, const void* raw, size_t size) {
+    for (size_t i = 0; i < options.size(); ++i) {
+        if (options[i].raw.size() == size && memcmp(options[i].raw.data(), raw, size) == 0) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+void Enums::SyncEnumIndex(Il2CppObject* instance, const char* fieldName, const std::vector<Il2Cpp::EnumMember>& options, int& index) {
+    index = -1;
+    if (!instance) return;
+
+    int32_t value = 0;
+    Il2Cpp::GetInstanceFieldValue(instance, fieldName, value);
+    index = FindEnumIndex(options, &value, sizeof(value));
 }

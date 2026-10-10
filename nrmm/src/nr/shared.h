@@ -100,8 +100,6 @@ public:
     // "game not loaded" hint and returns false
     static bool BeginGameTab(const char* label);
 
-    static void RenderEnumCombo(const char* label, const std::vector<Il2Cpp::EnumMember>& options, int selected, std::function<void(int)> onSelect);
-
     static void DestroyObject(Il2CppObject* object);
 
     // Writes the game's ES3 cache to disk. GodConstant.es3_settings uses
@@ -111,20 +109,6 @@ public:
     // menu edits made through ES3 persist without waiting for a scene change.
     // Call on the script thread. Returns false when it could not be resolved
     static bool ForceSaveGame();
-
-    // mainMenu.MainMenu_mode values, mirroring the enum nested in the mainMenu
-    // MonoBehaviour and its private mainMenu_mode field
-    enum class MainMenuMode : int32_t {
-        Null = 0,
-        MainMenu = 1,
-        EnterName = 2,
-        Paused = 3,
-        Intro = 4,
-        Leaderboard = 5,
-    };
-
-    // Reads mainMenu.mainMenu_mode. Returns false when the mainMenu object is not present
-    static bool GetMainMenuMode(MainMenuMode& outMode);
 
     // True while the main menu is up. Written on the script thread and read by
     // the render thread, so published atomically
@@ -167,12 +151,18 @@ public:
     // Returns false when the origin container is not loaded yet
     static bool CollectCarOrigins(std::unordered_set<int32_t>& validChassis, std::unordered_map<int32_t, std::vector<int32_t>>& chassisByModel);
 
-    // int value of an enum literal. The enums this is used with are int-backed
-    static int32_t EnumValue(const Il2Cpp::EnumMember& member);
+private:
+    // mainMenu.MainMenu_mode values, mirroring the enum nested in the mainMenu
+    // MonoBehaviour and its private mainMenu_mode field
+    enum class MainMenuMode : int32_t {
+        Null = 0,
+        MainMenu = 1,
+        EnterName = 2,
+        Paused = 3,
+        Intro = 4,
+        Leaderboard = 5,
+    };
 
-    // Enum helpers
-    // Writes an enum literal (raw bytes from Il2Cpp::GetEnumMembers) into an instance field
-    static bool SetEnumField(Il2CppObject* instance, const char* fieldName, const Il2Cpp::EnumMember& member);
-    static int FindEnumIndex(const std::vector<Il2Cpp::EnumMember>& options, const void* raw, size_t size);
-    static void SyncEnumIndex(Il2CppObject* instance, const char* fieldName, const std::vector<Il2Cpp::EnumMember>& options, int& index);
+    // Reads mainMenu.mainMenu_mode. Returns false when the mainMenu object is not present
+    static bool GetMainMenuMode(MainMenuMode& outMode);
 };

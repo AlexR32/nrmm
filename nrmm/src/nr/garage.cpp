@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "garage.h"
+#include "enums.h"
 #include "shared.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
@@ -131,7 +132,7 @@ void Garage::StartSpawn() {
         for (const Il2Cpp::EnumMember& member : chassisMembers) {
             // Same as the model list: drop the placeholder values by name
             if (member.name == "null_type" || member.name == "generic") continue;
-            chassisById[Shared::EnumValue(member)] = &member;
+            chassisById[Enums::EnumValue(member)] = &member;
         }
 
         std::vector<const Il2Cpp::EnumMember*> chassisValues;
@@ -298,7 +299,7 @@ void Garage::LoadModelOptionsNow() {
         // only carry null_type, so dropping a fixed count would lose a real car
         if (member.name == "null_type" || member.name == "generic") continue;
         // Skip models the game has no origin for
-        if (chassisByModel.find(Shared::EnumValue(member)) == chassisByModel.end()) continue;
+        if (chassisByModel.find(Enums::EnumValue(member)) == chassisByModel.end()) continue;
         options.push_back({member.name, member.raw});
     }
 

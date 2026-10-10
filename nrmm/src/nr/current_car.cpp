@@ -14,7 +14,7 @@ void CurrentCar::ApplyDrivetrain(int index) {
         const std::vector<Il2Cpp::EnumMember>& drivetrains = Enums::DrivetrainTypes();
         if (!carData || index < 0 || index >= static_cast<int>(drivetrains.size())) return;
 
-        if (!Shared::SetEnumField(carData, "drivetrain", drivetrains[index])) {
+        if (!Enums::SetEnumField(carData, "drivetrain", drivetrains[index])) {
             status.Set("drivetrain field not found");
             return;
         }
@@ -28,7 +28,7 @@ void CurrentCar::ApplyInductionType(int index) {
         const std::vector<Il2Cpp::EnumMember>& inductionTypes = Enums::InductionTypes();
         if (!carData || index < 0 || index >= static_cast<int>(inductionTypes.size())) return;
 
-        if (!Shared::SetEnumField(carData, "inductionType", inductionTypes[index])) {
+        if (!Enums::SetEnumField(carData, "inductionType", inductionTypes[index])) {
             status.Set("inductionType field not found");
             return;
         }
@@ -42,7 +42,7 @@ void CurrentCar::ApplyFuelType(int index) {
         const std::vector<Il2Cpp::EnumMember>& fuelTypes = Enums::FuelTypes();
         if (!carLocal || index < 0 || index >= static_cast<int>(fuelTypes.size())) return;
 
-        if (!Shared::SetEnumField(carLocal, "current_fuelType", fuelTypes[index])) {
+        if (!Enums::SetEnumField(carLocal, "current_fuelType", fuelTypes[index])) {
             status.Set("current_fuelType field not found");
             return;
         }
@@ -141,7 +141,7 @@ void CurrentCar::ApplyNumberPlate() {
         }
         if (!plateInfo) { status.Set("Failed to create plate info"); plateDirty.store(false, std::memory_order_relaxed); return; }
 
-        if (!Shared::SetEnumField(plateInfo, "plateType", types[typeIndex])) {
+        if (!Enums::SetEnumField(plateInfo, "plateType", types[typeIndex])) {
             status.Set("plateType field not found");
             plateDirty.store(false, std::memory_order_relaxed);
             return;
@@ -345,21 +345,21 @@ void CurrentCar::RenderTab() {
     if (!Enums::Ready() || Enums::DrivetrainTypes().empty()) {
         ImGui::TextUnformatted("Drivetrain types unavailable.");
     } else {
-        Shared::RenderEnumCombo("Drivetrain type", Enums::DrivetrainTypes(), snapshot.drivetrainIndex.load(std::memory_order_relaxed), ApplyDrivetrain);
+        Enums::RenderEnumCombo("Drivetrain type", Enums::DrivetrainTypes(), snapshot.drivetrainIndex.load(std::memory_order_relaxed), ApplyDrivetrain);
     }
 
     // Induction types
     if (!Enums::Ready() || Enums::InductionTypes().empty()) {
         ImGui::TextUnformatted("Induction types unavailable.");
     } else {
-        Shared::RenderEnumCombo("Induction type", Enums::InductionTypes(), snapshot.inductionTypeIndex.load(std::memory_order_relaxed), ApplyInductionType);
+        Enums::RenderEnumCombo("Induction type", Enums::InductionTypes(), snapshot.inductionTypeIndex.load(std::memory_order_relaxed), ApplyInductionType);
     }
 
     // Fuel types
     if (!Enums::Ready() || Enums::FuelTypes().empty()) {
         ImGui::TextUnformatted("Fuel types unavailable.");
     } else {
-        Shared::RenderEnumCombo("Fuel type", Enums::FuelTypes(), snapshot.fuelTypeIndex.load(std::memory_order_relaxed), ApplyFuelType);
+        Enums::RenderEnumCombo("Fuel type", Enums::FuelTypes(), snapshot.fuelTypeIndex.load(std::memory_order_relaxed), ApplyFuelType);
     }
 
     // Freeze checkbox lambda for ease of use
@@ -558,7 +558,7 @@ void CurrentCar::RenderTab() {
         if (!Enums::Ready() || Enums::PlateTypes().empty()) {
             ImGui::TextUnformatted("Plate types unavailable.");
         } else {
-            Shared::RenderEnumCombo("Plate type", Enums::PlateTypes(), plateEdit.type.load(std::memory_order_relaxed), [](int index) {
+            Enums::RenderEnumCombo("Plate type", Enums::PlateTypes(), plateEdit.type.load(std::memory_order_relaxed), [](int index) {
                 plateEdit.type.store(index, std::memory_order_relaxed);
                 plateDirty.store(true, std::memory_order_relaxed);
             });

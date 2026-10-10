@@ -14,7 +14,7 @@ void Player::ApplyRaceCrewType(int index) {
         const std::vector<Il2Cpp::EnumMember>& raceCrewTypes = Enums::RaceCrews();
         if (!god || index < 0 || index >= static_cast<int>(raceCrewTypes.size())) return;
 
-        if (!Shared::SetEnumField(god, "player_raceCrew", raceCrewTypes[index])) {
+        if (!Enums::SetEnumField(god, "player_raceCrew", raceCrewTypes[index])) {
             status.Set("player_raceCrew field not found");
             return;
         }
@@ -165,7 +165,7 @@ void Player::SaveOwnerMeetspot() {
         Il2CppObject* data = LoadMeetspotData(id);
         if (!data) { status.Set("MeetspotData not found"); return; }
 
-        Shared::SetEnumField(data, "owner", crew);
+        Enums::SetEnumField(data, "owner", crew);
         Il2Cpp::SetInstanceFieldValue(data, "strength", strength);
 
         if (!SaveMeetspotData(id, data)) { status.Set("SaveMeetspotData not found"); return; }
@@ -294,7 +294,7 @@ void Player::RenderTab() {
     if (!Enums::Ready() || Enums::RaceCrews().empty()) {
         ImGui::TextUnformatted("Race crew types unavailable.");
     } else {
-        Shared::RenderEnumCombo("Race crew", Enums::RaceCrews(), snapshot.raceCrewTypeIndex.load(std::memory_order_relaxed), ApplyRaceCrewType);
+        Enums::RenderEnumCombo("Race crew", Enums::RaceCrews(), snapshot.raceCrewTypeIndex.load(std::memory_order_relaxed), ApplyRaceCrewType);
     }
 
     if (ImGui::Button("End Night")) {
@@ -323,7 +323,7 @@ void Player::RenderTab() {
     } else {
         const std::vector<Il2Cpp::EnumMember>& meetSpots = Enums::MeetSpots();
         if (ownerMeetSpotIndex < 0 || ownerMeetSpotIndex >= static_cast<int>(meetSpots.size())) ownerMeetSpotIndex = 0;
-        Shared::RenderEnumCombo("Meetspot", meetSpots, ownerMeetSpotIndex, SelectOwnerMeetspot);
+        Enums::RenderEnumCombo("Meetspot", meetSpots, ownerMeetSpotIndex, SelectOwnerMeetspot);
     }
 
     if (!Enums::Ready() || Enums::RaceCrews().empty()) {
@@ -331,7 +331,7 @@ void Player::RenderTab() {
     } else {
         const std::vector<Il2Cpp::EnumMember>& raceCrewTypes = Enums::RaceCrews();
         if (ownerCrewIndex < 0 || ownerCrewIndex >= static_cast<int>(raceCrewTypes.size())) ownerCrewIndex = 0;
-        Shared::RenderEnumCombo("Owner", raceCrewTypes, ownerCrewIndex, [](int index) { ownerCrewIndex = index; });
+        Enums::RenderEnumCombo("Owner", raceCrewTypes, ownerCrewIndex, [](int index) { ownerCrewIndex = index; });
     }
 
     ImGui::SetNextItemWidth(120.0f);
@@ -368,7 +368,7 @@ void Player::RenderTab() {
     } else {
         const std::vector<Il2Cpp::EnumMember>& meetSpots = Enums::MeetSpots();
         if (meetSpotIndex < 0 || meetSpotIndex >= static_cast<int>(meetSpots.size())) meetSpotIndex = 0;
-        Shared::RenderEnumCombo("##meetspotRep", meetSpots, meetSpotIndex, [](int index) { meetSpotIndex = index; });
+        Enums::RenderEnumCombo("##meetspotRep", meetSpots, meetSpotIndex, [](int index) { meetSpotIndex = index; });
     }
 
     ImGui::SameLine();
