@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.7 — October 12, 2026
+
+### Added
+- **Odometer editor** on the Current Car tab: set the car's odometer reading directly, with a freeze toggle. Changing it shifts the oil-change and dirt thresholds by the same amount.
+- **Hide license plates** toggles on the Current Car tab to hide the front and/or rear plate.
+- **Unity log mirroring**: the mod console now shows the game's own `Debug.Log`, `LogWarning`, `LogError` and `LogException` output, colour-coded by severity.
+
+### Changed
+- The loading video override no longer loads the clip twice when random is enabled, and restores the player's loop state when it is turned off.
+- The menu toggle and unload keys are now swallowed on key-down so the game no longer sees a stuck key.
+- General internal cleanup (logger renamed to console, shared media and enum helpers) and optimizations.
+
+---
+
 ## 1.0.6 — October 8, 2026
 
 ### Added
