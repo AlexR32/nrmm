@@ -10,6 +10,8 @@
 //     queue, refreshes the menu snapshots and pumps the garage/audio sequences
 //   - GodConstant.doesCarPassRestriction and GodConstant.DoesPlayerMeetCrewSpec,
 //     which back the Player tab's meetspot-restriction toggle
+//   - UnityEngine.Debug.Log/LogWarning/LogError/LogException, which mirror the
+//     game's own log output into the mod console
 
 class Hooks {
 public:
@@ -61,6 +63,31 @@ private:
     inline static DoesPlayerMeetCrewSpecFn originalDoesPlayerMeetCrewSpec = nullptr;
     inline static void* crewSpecHookTarget = nullptr;
     inline static std::atomic_bool crewSpecHookInstalled{false};
+
+    // UnityEngine.Debug: mirrors the game's log output into the mod console.
+    // Only the single-argument overloads are hooked, which is what the game
+    // overwhelmingly calls. EnsureDebugLogHook is retried from EnsureInstalled
+    // until the Debug class and its methods resolve
+
+    using DebugLogFn = void(__fastcall*)(Il2CppObject* message, const MethodInfo* method);
+    using DebugLogExceptionFn = void(__fastcall*)(Il2CppObject* exception, const MethodInfo* method);
+
+    static void EnsureDebugLogHook();
+
+    static void __fastcall HookedDebugLog(Il2CppObject* message, const MethodInfo* method);
+    static void __fastcall HookedDebugLogWarning(Il2CppObject* message, const MethodInfo* method);
+    static void __fastcall HookedDebugLogError(Il2CppObject* message, const MethodInfo* method);
+    static void __fastcall HookedDebugLogException(Il2CppObject* exception, const MethodInfo* method);
+
+    inline static DebugLogFn originalDebugLog = nullptr;
+    inline static DebugLogFn originalDebugLogWarning = nullptr;
+    inline static DebugLogFn originalDebugLogError = nullptr;
+    inline static DebugLogExceptionFn originalDebugLogException = nullptr;
+    inline static void* debugLogTarget = nullptr;
+    inline static void* debugWarningHookTarget = nullptr;
+    inline static void* debugErrorHookTarget = nullptr;
+    inline static void* debugExceptionHookTarget = nullptr;
+    inline static std::atomic_bool debugLogHookInstalled{false};
 
     // Keeps Remove() from tearing the pump detour down while it is still
     // executing on the script thread

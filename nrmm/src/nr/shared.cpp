@@ -75,6 +75,45 @@ std::string Shared::ToFileUri(const std::string& utf8Path) {
     return uri;
 }
 
+std::string Shared::ManagedToString(Il2CppObject* object) {
+    if (!object) return "Null";
+
+    Il2CppClass* klass = Il2Cpp::ObjectClass(object);
+    if (!klass) return {};
+
+    // A managed string can be read straight out of the object; anything else
+    // (a boxed value or an exception) goes through ToString()
+    if (Il2Cpp::GetClassFullName(klass) == "System.String") {
+        return Il2Cpp::StringToUtf8(reinterpret_cast<Il2CppString*>(object));
+    }
+
+    const MethodInfo* toString = Il2Cpp::GetMethod(klass, "ToString", 0);
+    if (!toString) return {};
+
+    Il2CppObject* text = Il2Cpp::Invoke(toString, object, nullptr);
+    if (!text) return {};
+
+    return Il2Cpp::StringToUtf8(reinterpret_cast<Il2CppString*>(text));
+}
+
+void Shared::LogUnity(const std::string& message, Console::Color color) {
+    if (message.empty()) return;
+
+    std::string::size_type start = 0;
+    while (true) {
+        const std::string::size_type end = message.find('\n', start);
+        const std::string::size_type length = (end == std::string::npos ? message.size() : end) - start;
+
+        std::string line = message.substr(start, length);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+
+        Console::Log("[Unity] " + line, color);
+
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+}
+
 void Shared::Status::Set(const std::string& message) {
     {
         std::lock_guard<std::mutex> lock(mutex);

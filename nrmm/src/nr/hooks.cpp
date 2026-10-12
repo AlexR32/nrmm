@@ -175,12 +175,73 @@ void Hooks::EnsureCrewSpecHook() {
     crewSpecHookInstalled.store(true, std::memory_order_release);
 }
 
+// UnityEngine.Debug: mirror the game's console output into the mod console
+
+void __fastcall Hooks::HookedDebugLog(Il2CppObject* message, const MethodInfo* method) {
+    Shared::LogUnity(Shared::ManagedToString(message), Console::Color::Default);
+    if (originalDebugLog) originalDebugLog(message, method);
+}
+
+void __fastcall Hooks::HookedDebugLogWarning(Il2CppObject* message, const MethodInfo* method) {
+    Shared::LogUnity(Shared::ManagedToString(message), Console::Color::Yellow);
+    if (originalDebugLogWarning) originalDebugLogWarning(message, method);
+}
+
+void __fastcall Hooks::HookedDebugLogError(Il2CppObject* message, const MethodInfo* method) {
+    Shared::LogUnity(Shared::ManagedToString(message), Console::Color::Red);
+    if (originalDebugLogError) originalDebugLogError(message, method);
+}
+
+void __fastcall Hooks::HookedDebugLogException(Il2CppObject* exception, const MethodInfo* method) {
+    Shared::LogUnity(Shared::ManagedToString(exception), Console::Color::Magenta);
+    if (originalDebugLogException) originalDebugLogException(exception, method);
+}
+
+void Hooks::EnsureDebugLogHook() {
+    if (debugLogHookInstalled.load(std::memory_order_acquire)) return;
+
+    // Debug lives in the engine's core module, not Assembly-CSharp
+    Il2CppImage* coreModule = Il2Cpp::GetImage("UnityEngine.CoreModule");
+    if (!coreModule) return;
+
+    Il2CppClass* debugClass = Il2Cpp::FindClass("UnityEngine.Debug", coreModule);
+    if (!debugClass) return;
+
+    const auto install = [debugClass](const char* methodName, const char* label, void* detour, void** original, void** target) {
+        const MethodInfo* method = Il2Cpp::GetMethod(debugClass, methodName, 1);
+        void* pointer = GetMethodPointer(method);
+        if (!pointer) return;
+
+        if (!EnableDetour(pointer, detour, original, label)) return;
+        *target = pointer;
+    };
+
+    install("Log", "UnityEngine.Debug.Log",
+        reinterpret_cast<void*>(&HookedDebugLog),
+        reinterpret_cast<void**>(&originalDebugLog), &debugLogTarget);
+
+    install("LogWarning", "UnityEngine.Debug.LogWarning",
+        reinterpret_cast<void*>(&HookedDebugLogWarning),
+        reinterpret_cast<void**>(&originalDebugLogWarning), &debugWarningHookTarget);
+
+    install("LogError", "UnityEngine.Debug.LogError",
+        reinterpret_cast<void*>(&HookedDebugLogError),
+        reinterpret_cast<void**>(&originalDebugLogError), &debugErrorHookTarget);
+
+    install("LogException", "UnityEngine.Debug.LogException",
+        reinterpret_cast<void*>(&HookedDebugLogException),
+        reinterpret_cast<void**>(&originalDebugLogException), &debugExceptionHookTarget);
+
+    debugLogHookInstalled.store(true, std::memory_order_release);
+}
+
 // Lifecycle
 
 void Hooks::EnsureInstalled() {
     EnsureUpdateHook();
     EnsureRestrictionHook();
     EnsureCrewSpecHook();
+    EnsureDebugLogHook();
 }
 
 void Hooks::Remove() {
@@ -212,4 +273,23 @@ void Hooks::Remove() {
     crewSpecHookTarget = nullptr;
     originalDoesPlayerMeetCrewSpec = nullptr;
     crewSpecHookInstalled.store(false, std::memory_order_release);
+
+    // The Unity log hooks are installed independently of everything else
+    DisableDetour(debugLogTarget);
+    debugLogTarget = nullptr;
+    originalDebugLog = nullptr;
+
+    DisableDetour(debugWarningHookTarget);
+    debugWarningHookTarget = nullptr;
+    originalDebugLogWarning = nullptr;
+
+    DisableDetour(debugErrorHookTarget);
+    debugErrorHookTarget = nullptr;
+    originalDebugLogError = nullptr;
+
+    DisableDetour(debugExceptionHookTarget);
+    debugExceptionHookTarget = nullptr;
+    originalDebugLogException = nullptr;
+
+    debugLogHookInstalled.store(false, std::memory_order_release);
 }

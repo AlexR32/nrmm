@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "il2cpp/il2cpp.h"
 #include "il2cpp/main_thread.h"
+#include "core/console.h"
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -92,6 +93,16 @@ public:
     // is deliberately not percent-encoded, because VideoPlayer.url does not
     // percent-decode while UnityWebRequest does, so raw UTF-8 works for both
     static std::string ToFileUri(const std::string& utf8Path);
+
+    // Renders the managed argument of a UnityEngine.Debug call (a string, a
+    // boxed value or an exception) as UTF-8; falls back to the object's
+    // ToString() for anything that is not a string
+    static std::string ManagedToString(Il2CppObject* object);
+
+    // Logs a message mirrored from the game's UnityEngine.Debug output. The text
+    // can be multi-line (exception stack traces), so every line is logged as its
+    // own "[Unity] " entry, keeping the console and the log file readable
+    static void LogUnity(const std::string& message, Console::Color color = Console::Color::Default);
 
     static void RenderLabel(const char* text);
 
