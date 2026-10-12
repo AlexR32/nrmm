@@ -10,8 +10,8 @@ LANGUAGE 9, 1
 // derived from one another.
 
 
-#define VERSION         1,0,6,0
-#define VERSION_STRING "1.0.6.0"
+#define VERSION         1,0,7,0
+#define VERSION_STRING "1.0.7.0"
 
 
 // Version resource
