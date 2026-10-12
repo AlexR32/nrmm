@@ -106,6 +106,40 @@ void CurrentCar::ApplyPlateToCar(Il2CppObject* carLocal, Il2CppObject* plateInfo
     }
 }
 
+// Hides or shows the plates by toggling the GameObject activeSelf on the
+// plateFront and plateRear components. Called every snapshot so the game cannot
+// re-show a plate the player hid
+void CurrentCar::ApplyPlateVisibility(Il2CppObject* carLocal) {
+    if (!carLocal) return;
+
+    static const MethodInfo* setActive = nullptr;
+    if (!setActive) {
+        Il2CppClass* klass = Il2Cpp::FindClass("UnityEngine.GameObject", Il2Cpp::GetImage("UnityEngine.CoreModule"));
+        setActive = klass ? Il2Cpp::GetMethod(klass, "SetActive", 1) : nullptr;
+    }
+    if (!setActive) return;
+
+    const char* plateFields[2] = {"plateFront", "plateRear"};
+    const bool plateHidden[2] = {
+        hideFrontPlate.load(std::memory_order_relaxed),
+        hideRearPlate.load(std::memory_order_relaxed)
+    };
+    for (int i = 0; i < 2; ++i) {
+        Il2CppObject* plate = Il2Cpp::GetInstanceFieldObject(carLocal, plateFields[i]);
+        if (!plate || !Il2Cpp::IsUnityObjectAlive(plate)) continue;
+
+        const bool wanted = !plateHidden[i];
+        if (Il2Cpp::IsActiveSelf(plate) == wanted) continue;
+
+        Il2CppObject* gameObject = Il2Cpp::GetGameObject(plate);
+        if (!gameObject) continue;
+
+        bool active = wanted;
+        void* args[1] = {&active};
+        Il2Cpp::Invoke(setActive, gameObject, args);
+    }
+}
+
 void CurrentCar::ApplyNumberPlate() {
     const int typeIndex = plateEdit.type.load(std::memory_order_relaxed);
     const int kanjiLeft = plateEdit.kanjiLeft.load(std::memory_order_relaxed);
@@ -326,6 +360,8 @@ void CurrentCar::RefreshSnapshot() {
         snapshot.plate.numberBig2.store(big2, std::memory_order_relaxed);
         snapshot.plate.numberBig3.store(big3, std::memory_order_relaxed);
         snapshot.plate.numberBig4.store(big4, std::memory_order_relaxed);
+
+        ApplyPlateVisibility(carLocal);
     }
 }
 
@@ -596,6 +632,16 @@ void CurrentCar::RenderTab() {
         renderPlateField("Big 3", plateEdit.numberBig3, 0, 9);
         ImGui::SameLine();
         renderPlateField("Big 4", plateEdit.numberBig4, 0, 9);
+
+        bool hideFrontOn = hideFrontPlate.load(std::memory_order_relaxed);
+        if (ImGui::Checkbox("Hide front plate", &hideFrontOn)) {
+            hideFrontPlate.store(hideFrontOn, std::memory_order_relaxed);
+        }
+        ImGui::SameLine();
+        bool hideRearOn = hideRearPlate.load(std::memory_order_relaxed);
+        if (ImGui::Checkbox("Hide rear plate", &hideRearOn)) {
+            hideRearPlate.store(hideRearOn, std::memory_order_relaxed);
+        }
 
         if (ImGui::Button("Apply plate")) {
             ApplyNumberPlate();

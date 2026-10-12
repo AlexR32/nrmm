@@ -70,6 +70,11 @@ private:
     // on CarLocalCustom.plateFront and plateRear
     static void ApplyPlateToCar(Il2CppObject* carLocal, Il2CppObject* plateInfo);
 
+    // Hides or shows both plate meshes by toggling the activeSelf of the
+    // CarLocalCustom.plateFront and plateRear GameObjects to match the
+    // hideFrontPlate and hideRearPlate toggles
+    static void ApplyPlateVisibility(Il2CppObject* carLocal);
+
     static void ChangeOil();
     static void CleanCar();
 
@@ -88,6 +93,10 @@ private:
     // live snapshot while plateDirty is false, and read when an action is posted
     inline static PlateValues plateEdit;
     inline static std::atomic_bool plateDirty{false};
+
+    // While set, the matching plate GameObject is kept inactive
+    inline static std::atomic_bool hideFrontPlate{false};
+    inline static std::atomic_bool hideRearPlate{false};
 
     // Freeze toggles. While a freeze is off its target tracks the live value,
     // so enabling it captures whatever the car currently has
