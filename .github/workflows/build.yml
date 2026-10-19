@@ -1,7 +1,9 @@
-name: Build
+name: Build & Release
 
 on:
   push:
+    branches:
+      - main
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
@@ -13,9 +15,12 @@ on:
       - '.gitignore'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -24,6 +29,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v3
@@ -41,6 +48,63 @@ jobs:
             throw "Invalid nrmm.dll version '$version'"
           }
           "value=$version" | Add-Content -Path $env:GITHUB_OUTPUT
+          "tag=v$version" | Add-Content -Path $env:GITHUB_OUTPUT
+
+      - name: Determine whether to release
+        id: release
+        shell: pwsh
+        run: |
+          $isRelease = "${{ github.event_name }}" -eq 'workflow_dispatch' -or ("${{ github.event_name }}" -eq 'push' -and "${{ github.ref }}" -eq 'refs/heads/main')
+          "enabled=$($isRelease.ToString().ToLower())" | Add-Content -Path $env:GITHUB_OUTPUT
+
+      - name: Check whether the version tag already exists
+        id: check
+        if: steps.release.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git fetch --tags --force
+          if (git tag --list $env:TAG) {
+            Write-Host "Tag $env:TAG already exists, skipping release"
+            "exists=true" | Add-Content -Path $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "Tag $env:TAG is new"
+            "exists=false" | Add-Content -Path $env:GITHUB_OUTPUT
+          }
+
+      - name: Build release notes from CHANGELOG.md
+        id: notes
+        if: steps.release.outputs.enabled == 'true' && steps.check.outputs.exists == 'false'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.value }}"
+          $hasNotes = 'false'
+          if (Test-Path -LiteralPath 'CHANGELOG.md') {
+            $lines = @(Get-Content -LiteralPath 'CHANGELOG.md')
+            $escaped = [regex]::Escape($version)
+            $start = -1
+            for ($i = 0; $i -lt $lines.Count; $i++) {
+              if ($lines[$i] -match "^##\s+$escaped(\s|$)") { $start = $i + 1; break }
+            }
+            if ($start -ge 0) {
+              $end = $lines.Count
+              for ($i = $start; $i -lt $lines.Count; $i++) {
+                if ($lines[$i] -match '^##\s') { $end = $i; break }
+              }
+              $body = if ($end -gt $start) { ($lines[$start..($end - 1)] -join "`n").Trim() } else { '' }
+              $body = ($body -replace '(?s)\s*-{3,}\s*$', '').Trim()
+              if ($body) {
+                Set-Content -LiteralPath 'release-notes.md' -Value $body -Encoding utf8
+                $hasNotes = 'true'
+                Write-Host "Using CHANGELOG.md section for $version"
+              }
+            }
+          }
+          if ($hasNotes -eq 'false') {
+            Write-Host "No CHANGELOG.md section for $version, falling back to generated release notes"
+          }
+          "has_notes=$hasNotes" | Add-Content -Path $env:GITHUB_OUTPUT
 
       - name: Build bootstrapper (Release x64)
         run: msbuild bootstrapper\bootstrapper.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:SolutionDir=${{ github.workspace }}\
@@ -61,3 +125,16 @@ jobs:
             nrmm-${{ steps.version.outputs.value }}.zip
             bin/nrmm.dll
           if-no-files-found: error
+
+      - name: Create GitHub release
+        if: steps.release.outputs.enabled == 'true' && steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: NRMM ${{ steps.version.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.has_notes == 'true' && 'release-notes.md' || '' }}
+          generate_release_notes: ${{ steps.notes.outputs.has_notes != 'true' }}
+          make_latest: true
+          files: |
+            nrmm-${{ steps.version.outputs.value }}.zip
+            bin/nrmm.dll

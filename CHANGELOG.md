@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.7 — October 12, 2026
+## 1.0.7 - October 12, 2026
 
 ### Added
 - **Odometer editor** on the Current Car tab: set the car's odometer reading directly, with a freeze toggle. Changing it shifts the oil-change and dirt thresholds by the same amount.
@@ -14,7 +14,7 @@
 
 ---
 
-## 1.0.6 — October 8, 2026
+## 1.0.6 - October 8, 2026
 
 ### Added
 - **Loading video override** (Loading Video tab): replace the loading screen's intro video with your own file dropped into a `videos` folder next to `nrmm.dll`, with a toggle to pick a random clip each load just like the game does. The loading screen's clip and song text are hidden while your clip plays.
@@ -26,7 +26,7 @@
 
 ---
 
-## 1.0.5 — October 7, 2026
+## 1.0.5 - October 7, 2026
 
 ### Added
 - **Custom music player** (Music tab): play your own `.wav`, `.mp3` and `.ogg` files from a `music` folder next to `nrmm.dll`, routed through the game's own music system so the in-game volume slider and speed effects still apply. Includes a track picker, Play / Stop / Pause / Resume, Prev / Next, and **Playlist** and **Shuffle** modes; the file name is mirrored into the game's now-playing UI and the in-game phone music keys control playback.
@@ -38,7 +38,7 @@
 
 ---
 
-## 1.0.4 — October 6, 2026
+## 1.0.4 - October 6, 2026
 
 ### Added
 - **Bootstrapper** (`bootstrapper.exe`): a small launcher that injects the mod into *NIGHT-RUNNERS PRIVATE ALPHA* (preferring `nrmm-debug.dll` when present, and skipping the injection when the DLL is already loaded), decrypts and re-encrypts the game's `SaveFile.es3`, and follows the Windows light/dark theme automatically.
@@ -53,7 +53,7 @@
 
 ---
 
-## 1.0.3 — October 4, 2026
+## 1.0.3 - October 4, 2026
 
 ### Added
 - **Rebindable keybinds**: set the open-menu and unload keys from the Settings tab.
@@ -65,7 +65,7 @@
 
 ---
 
-## 1.0.2 — October 2, 2026
+## 1.0.2 - October 2, 2026
 
 ### Changed
 - More reliable game shutdown and clean unhooking.
@@ -73,7 +73,7 @@
 
 ---
 
-## 1.0.1 — October 2, 2026
+## 1.0.1 - October 2, 2026
 
 ### Changed
 - Rewritten logger.
