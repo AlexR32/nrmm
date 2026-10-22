@@ -121,9 +121,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: nrmm-${{ steps.version.outputs.value }}
-          path: |
-            nrmm-${{ steps.version.outputs.value }}.zip
-            bin/nrmm.dll
+          path: bin/*
           if-no-files-found: error
 
       - name: Create GitHub release
