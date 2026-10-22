@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.8 - October 22, 2026
+
+### Added
+- **Sky tab**: a live editor for the game's Azure Sky Manager settings (lighting, scattering, fog, clouds, outer space and weather), with per-value overrides that you can toggle and clear at any time. Overrides are applied on top of the settings the game computes each frame, so its day/night animation keeps running and clearing an override instantly restores the game's value.
+- **Time control** on the Sky tab: override the time of day, and freeze the clock. The game's own clock is handed back when you turn the override off.
+- **Sky presets**: save, load and delete named presets in a `sky_presets` folder next to `nrmm.dll`; each preset stores every override plus the time state.
+
+### Changed
+- **Unlock All Parts** rewritten: it now purges the existing unlock list, re-adds every entry from the game's unlock template and flushes the save to disk, so all parts are unlocked immediately and the count of unlocked parts is reported in the status line.
+
+---
+
 ## 1.0.7 - October 12, 2026
 
 ### Added
