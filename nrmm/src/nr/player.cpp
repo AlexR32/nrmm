@@ -182,17 +182,57 @@ void Player::SaveOwnerMeetspot() {
 void Player::UnlockAllParts() {
     MainThread::Post([]() {
         Il2CppClass* godClass = Il2Cpp::FindClass("GodConstant");
-        if (!godClass) { status.Set("GodConstant not found"); return; }
-
         Il2CppObject* god = Shared::God();
-        if (!god) { status.Set("GodConstant not found"); return; }
+        if (!godClass || !god) { status.Set("GodConstant not found"); return; }
 
+        // loadAllRepUnlocks creates unlocks_all (from ES3 or empty) if it is not
+        // loaded yet, so there is always a list to purge
+        const MethodInfo* load = Il2Cpp::GetMethod(godClass, "loadAllRepUnlocks", 0);
+        if (load) Il2Cpp::Invoke(load, god, nullptr);
+
+        Il2CppObject* unlocks = Il2Cpp::GetInstanceFieldObject(god, "unlocks_all");
+        if (!unlocks) { status.Set("unlocks_all not found"); return; }
+
+        Shared::ListClear(unlocks);
+        // Keep the loaded flag set so addNewUnlock does not reload the old list
+        // from ES3 over the purge
+        Il2Cpp::SetInstanceFieldValue(god, "unlocksLoaded_", true);
+
+        // Rep high enough that every template entry clears its unlock gate
         Il2Cpp::SetInstanceFieldValue(god, "player_gameRep", kUnlockGameRep);
 
-        const MethodInfo* check = Il2Cpp::GetMethod(godClass, "check_forPlayerUnlock", 0);
-        if (check) Il2Cpp::Invoke(check, god, nullptr);
+        Il2CppObject* templateList = Il2Cpp::GetInstanceFieldObject(god, "template_unlock_partsList");
+        if (!templateList) { status.Set("unlock template not found"); return; }
 
-        status.Set("Unlocked all parts");
+        Il2CppClass* unlockClass = Il2Cpp::FindClass("GodConstant.CarPartUnlock");
+        const MethodInfo* addNewUnlock = Il2Cpp::GetMethod(godClass, "addNewUnlock", 1);
+        if (!unlockClass || !addNewUnlock) { status.Set("addNewUnlock not found"); return; }
+
+        int added = 0;
+        const int count = Shared::ListCount(templateList);
+        for (int i = 0; i < count; ++i) {
+            Il2CppObject* entry = Shared::ListGet(templateList, i);
+            if (!entry) continue;
+
+            int32_t partType = 0;
+            int32_t partQuality = 0;
+            Il2Cpp::GetInstanceFieldValue(entry, "partType", partType);
+            Il2Cpp::GetInstanceFieldValue(entry, "partQuality", partQuality);
+
+            Il2CppObject* unlock = Il2Cpp::NewObject(unlockClass);
+            if (!unlock) continue;
+            Il2Cpp::SetInstanceFieldValue(unlock, "partType", partType);
+            Il2Cpp::SetInstanceFieldValue(unlock, "partQuality", partQuality);
+
+            void* args[1] = {unlock};
+            Il2Cpp::Invoke(addNewUnlock, god, args);
+            ++added;
+        }
+
+        // Flush the ES3 cache so the new unlocks hit disk now instead of
+        // waiting for the next scene change
+        const bool saved = Shared::ForceSaveGame();
+        status.Set("Unlocked all parts (" + std::to_string(added) + ")" + (saved ? " and saved the game" : ""));
     });
 }
 
