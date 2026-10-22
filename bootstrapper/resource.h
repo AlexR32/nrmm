@@ -8,7 +8,6 @@
 
 // Icons
 #define IDI_BOOTSTRAPPER        101
-#define IDI_SMALL               102
 
 // Control and command identifiers
 #define IDC_HEADER              1001

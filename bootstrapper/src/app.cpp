@@ -113,7 +113,7 @@ bool App::Initialize(int showCommand) {
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = nullptr;
     wc.lpszClassName = kWindowClass;
-    wc.hIconSm = LoadIconW(instance_, MAKEINTRESOURCEW(IDI_SMALL));
+    wc.hIconSm = LoadIconW(instance_, MAKEINTRESOURCEW(IDI_BOOTSTRAPPER));
 
     if (!RegisterClassExW(&wc)) return false;
 

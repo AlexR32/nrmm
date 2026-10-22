@@ -69,8 +69,5 @@
     <Image Include="res\bootstrapper.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="res\small.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
   </ItemGroup>
 </Project>

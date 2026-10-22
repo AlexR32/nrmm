@@ -10,7 +10,6 @@ LANGUAGE 9, 1
 // Icon
 
 IDI_BOOTSTRAPPER        ICON                    "res\\bootstrapper.ico"
-IDI_SMALL               ICON                    "res\\small.ico"
 
 // Version
 
