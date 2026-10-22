@@ -46,6 +46,7 @@
     <ClInclude Include="src\nr\music.h" />
     <ClInclude Include="src\nr\player.h" />
     <ClInclude Include="src\nr\shared.h" />
+    <ClInclude Include="src\nr\sky.h" />
     <ClInclude Include="src\nr\world.h" />
     <ClInclude Include="src\pch.h" />
   </ItemGroup>
@@ -112,6 +113,7 @@
     <ClCompile Include="src\nr\music.cpp" />
     <ClCompile Include="src\nr\player.cpp" />
     <ClCompile Include="src\nr\shared.cpp" />
+    <ClCompile Include="src\nr\sky.cpp" />
     <ClCompile Include="src\nr\world.cpp" />
     <ClCompile Include="src\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

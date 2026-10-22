@@ -64,6 +64,20 @@ private:
     inline static void* crewSpecHookTarget = nullptr;
     inline static std::atomic_bool crewSpecHookInstalled{false};
 
+    // AzureProfileController.GetProfileSettings: the Sky tab rewrites the
+    // freshly computed Azure settings here, before the game applies them to the
+    // sky/fog shaders. EnsureAzureHook is retried from EnsureInstalled until the
+    // class and method resolve
+
+    using GetProfileSettingsFn = Il2CppObject* (__fastcall*)(Il2CppObject* self, const MethodInfo* method);
+
+    static void EnsureAzureHook();
+    static Il2CppObject* __fastcall HookedGetProfileSettings(Il2CppObject* self, const MethodInfo* method);
+
+    inline static GetProfileSettingsFn originalGetProfileSettings = nullptr;
+    inline static void* azureHookTarget = nullptr;
+    inline static std::atomic_bool azureHookInstalled{false};
+
     // UnityEngine.Debug: mirrors the game's log output into the mod console.
     // Only the single-argument overloads are hooked, which is what the game
     // overwhelmingly calls. EnsureDebugLogHook is retried from EnsureInstalled

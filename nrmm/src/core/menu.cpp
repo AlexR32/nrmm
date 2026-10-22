@@ -15,6 +15,7 @@
 #include "nr/fixes.h"
 #include "nr/music.h"
 #include "nr/loading_video.h"
+#include "nr/sky.h"
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -211,6 +212,7 @@ void Menu::RenderMainWindow() {
         {"Auction", Auction::RenderTab},
         {"Music", Music::RenderTab},
         {"Loading", LoadingVideo::RenderTab},
+        {"Sky", Sky::RenderTab},
         {"Fixes", Fixes::RenderTab},
     };
     const int tabCount = IM_ARRAYSIZE(tabs);

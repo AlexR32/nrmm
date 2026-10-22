@@ -114,6 +114,9 @@
     <ClInclude Include="src\nr\shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\nr\sky.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\nr\world.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -207,6 +210,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\nr\shared.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nr\sky.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\nr\world.cpp">

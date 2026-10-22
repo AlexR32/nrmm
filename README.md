@@ -36,6 +36,10 @@
 - **Auction**
   - Refresh the auction listing
   - Unlock every available car for sale
+- **Sky**
+  - Save/Load/Delete presets for sky
+  - Override or freeze the game time
+  - Sky editor (lighting, scattering, fog, clouds, outer space and weather)
 - **Fixes**
   - Separate tab to show what game fixes this mod menu has
 

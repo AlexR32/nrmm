@@ -10,6 +10,7 @@
 #include "fixes.h"
 #include "music.h"
 #include "loading_video.h"
+#include "sky.h"
 #include "shared.h"
 #include "backends/d3d11.h"
 #include "il2cpp/il2cpp.h"
@@ -95,6 +96,7 @@ void __fastcall Hooks::HookedGodConstantUpdate(Il2CppObject* self, const MethodI
     Garage::Pump();
     Music::Pump();
     LoadingVideo::Pump();
+    Sky::Pump();
 
     if (originalGodConstantUpdate) originalGodConstantUpdate(self, method);
 }
@@ -175,6 +177,36 @@ void Hooks::EnsureCrewSpecHook() {
     crewSpecHookInstalled.store(true, std::memory_order_release);
 }
 
+// AzureProfileController.GetProfileSettings: the Sky tab's settings overrides
+
+Il2CppObject* __fastcall Hooks::HookedGetProfileSettings(Il2CppObject* self, const MethodInfo* method) {
+    HookScope scope;
+
+    Il2CppObject* settings = originalGetProfileSettings ? originalGetProfileSettings(self, method) : nullptr;
+    if (settings) Sky::ApplySettings(settings);
+    return settings;
+}
+
+void Hooks::EnsureAzureHook() {
+    if (azureHookInstalled.load(std::memory_order_acquire)) return;
+
+    Il2CppClass* controllerClass = Il2Cpp::FindClass("UnityEngine.AzureSky.AzureProfileController");
+    if (!controllerClass) return;
+
+    const MethodInfo* method = Il2Cpp::GetMethod(controllerClass, "GetProfileSettings", 0);
+    void* target = GetMethodPointer(method);
+    if (!target) return;
+
+    // A MinHook failure here is not transient, so stop retrying every tick
+    if (!EnableDetour(target, reinterpret_cast<void*>(&HookedGetProfileSettings), reinterpret_cast<void**>(&originalGetProfileSettings), "AzureProfileController.GetProfileSettings")) {
+        azureHookInstalled.store(true, std::memory_order_release);
+        return;
+    }
+
+    azureHookTarget = target;
+    azureHookInstalled.store(true, std::memory_order_release);
+}
+
 // UnityEngine.Debug: mirror the game's console output into the mod console
 
 void __fastcall Hooks::HookedDebugLog(Il2CppObject* message, const MethodInfo* method) {
@@ -241,6 +273,7 @@ void Hooks::EnsureInstalled() {
     EnsureUpdateHook();
     EnsureRestrictionHook();
     EnsureCrewSpecHook();
+    EnsureAzureHook();
     EnsureDebugLogHook();
 }
 
@@ -273,6 +306,12 @@ void Hooks::Remove() {
     crewSpecHookTarget = nullptr;
     originalDoesPlayerMeetCrewSpec = nullptr;
     crewSpecHookInstalled.store(false, std::memory_order_release);
+
+    // The Azure settings hook is independent of everything else
+    DisableDetour(azureHookTarget);
+    azureHookTarget = nullptr;
+    originalGetProfileSettings = nullptr;
+    azureHookInstalled.store(false, std::memory_order_release);
 
     // The Unity log hooks are installed independently of everything else
     DisableDetour(debugLogTarget);
