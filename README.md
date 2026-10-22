@@ -36,6 +36,17 @@
 - **Auction**
   - Refresh the auction listing
   - Unlock every available car for sale
+- **Music**
+  - Play your own `.wav`, `.mp3`, `.ogg` (and `.aiff`) files from a `music` folder next to `nrmm.dll`
+  - Routed through the game's own music system, so the in-game volume slider and speed effects still apply
+  - Track picker with Play, Stop, Pause/Resume, Prev and Next
+  - **Playlist** and **Shuffle** modes
+  - The file name is mirrored into the game's now-playing UI and the in-game phone music keys control playback
+- **Loading**
+  - Replace the loading screen's intro video with your own `.mp4` (H.264), `.m4v`, `.mov` or `.webm` file from a `videos` folder next to `nrmm.dll`
+  - **Encoding is strict.** Unity's Windows video player decodes through Media Foundation, so the file must be **H.264 video with AAC audio in an MP4/M4V/MOV container** and a standard 4:2:0 (`yuv420p`) pixel format. Codecs such as VP9, AV1 and HEVC/H.265-in-MP4 are not decoded by default and show a black loading screen, even when they are inside an `.mp4`; a clean re-encode (e.g. `ffmpeg -i in.mp4 -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart out.mp4`) is the reliable fix
+  - Toggle to pick a random clip each load, just like the game does
+  - The loading screen's clip (GIFGAS) and song text are hidden while your clip plays
 - **Sky**
   - Save/Load/Delete presets for sky
   - Override or freeze the game time
